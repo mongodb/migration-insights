@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Local build/runtime
+dist/
+build/
+.build_venv_*/
+**/insights.log
+
+# Local secrets (never commit)
+CONNECTION_STRING
