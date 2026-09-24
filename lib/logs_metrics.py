@@ -1240,7 +1240,7 @@ def upload_file():
         else:
             fig.add_trace(go.Table(
                 header=dict(values=["Date Time", "Event"]),
-                cells=dict(values=[[], []]),
+                cells=dict(values=[["-"], ["No data"]]),
                 meta=dict(markdownKey="progress"),
             ), row=1, col=2)
 
@@ -1382,7 +1382,7 @@ def upload_file():
         else:
             fig.add_trace(go.Table(
                 header=dict(values=["Collection", "Type", "Partitions", "Doc Count", "Duration (s)"]),
-                cells=dict(values=[[], [], [], [], []])
+                cells=dict(values=[["No data"], ["-"], ["-"], ["-"], ["-"]])
             ), row=5, col=2)
 
         # Row 6: Data Copied Over Time

@@ -1477,24 +1477,36 @@ function lvBackToTail() {
 }
 
 
+function miRenderPlotSafely(elId, plotData, options) {
+    if (!plotData || !plotData.data || typeof global.miRenderPlot !== 'function') {
+        return;
+    }
+    // A Plotly failure here must not abort the rest of the page initialization.
+    try {
+        global.miRenderPlot(elId, plotData, options);
+    } catch (err) {
+        console.error('Plot render failed for ' + elId + ':', err);
+        var el = document.getElementById(elId);
+        if (el) {
+            el.innerHTML = '<div class="no-data-message">This chart could not be rendered. See the browser console for details.</div>';
+        }
+    }
+}
+
 function miInitUploadResultsCharts() {
-    if (cfg.plot && cfg.plot.data && typeof global.miRenderPlot === 'function') {
-        global.miRenderPlot('plot', cfg.plot, {
-            onRendered: function(elId) {
-                buildInfoOverlay(elId);
-                buildTableCopyOverlay(elId);
-                bindInfoOverlayEvents(elId);
-            }
-        });
-    }
-    if (cfg.metricsPlot && cfg.metricsPlot.data && typeof global.miRenderPlot === 'function') {
-        global.miRenderPlot('metrics-plot', cfg.metricsPlot, {
-            onRendered: function(elId) {
-                buildInfoOverlay(elId);
-                bindInfoOverlayEvents(elId);
-            }
-        });
-    }
+    miRenderPlotSafely('plot', cfg.plot, {
+        onRendered: function(elId) {
+            buildInfoOverlay(elId);
+            buildTableCopyOverlay(elId);
+            bindInfoOverlayEvents(elId);
+        }
+    });
+    miRenderPlotSafely('metrics-plot', cfg.metricsPlot, {
+        onRendered: function(elId) {
+            buildInfoOverlay(elId);
+            bindInfoOverlayEvents(elId);
+        }
+    });
 }
 
 function miInitUploadResultsPage() {
