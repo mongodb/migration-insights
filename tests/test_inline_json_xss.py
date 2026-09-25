@@ -13,6 +13,7 @@ import uuid
 import pytest
 
 from lib import snapshot_store
+from lib.file_owner import OWNER_COOKIE_NAME
 from lib.log_store_registry import log_store_registry
 from lib.plot_theme import inline_json
 
@@ -175,9 +176,11 @@ class TestStoredSnapshots:
         poisoned["has_logs_data"] = True
 
         snapshot_id = str(uuid.uuid4())
+        owner = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
         snapshot_store.save_snapshot(
-            snapshot_id, "mongosync.log", 100, 1, "", poisoned
+            snapshot_id, "mongosync.log", 100, 1, "", poisoned, owner=owner
         )
+        app_client.set_cookie(OWNER_COOKIE_NAME, owner)
 
         response = app_client.get(f"/logs/load_snapshot/{snapshot_id}")
         assert response.status_code == 200

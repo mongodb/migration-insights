@@ -1,8 +1,9 @@
 import logging
 import os
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, g, jsonify, make_response, render_template, request
 
+from lib.file_owner import attach_owner_cookie, kanopy_identity_enabled, resolve_file_owner
 from lib.log_time import InvalidLogTimestamp, normalize_search_end, normalize_search_start
 from lib.logs_metrics import upload_file
 from lib.log_store_registry import log_store_registry
@@ -11,6 +12,8 @@ from lib.snapshot_store import (
     list_snapshots as get_snapshot_list,
     delete_snapshot as remove_snapshot,
     logstore_path,
+    read_snapshot_owner,
+    store_owned_by,
 )
 from lib.store_paths import is_valid_store_id
 
@@ -27,19 +30,39 @@ _SNAPSHOT_NOT_FOUND_KWARGS = {
 }
 
 
+def _owner_context():
+    """Return (owner, cookie_to_set, identity_denied)."""
+    owner, cookie = resolve_file_owner()
+    denied = kanopy_identity_enabled() and not owner
+    return owner, cookie, denied
+
+
+def _finish(body, cookie=None, status=None):
+    response = make_response(body) if status is None else make_response(body, status)
+    return attach_owner_cookie(response, cookie)
+
+
 @bp.route("/")
 def logs_home():
     from lib.app_config import (
         MAX_FILE_SIZE,
     )
 
+    _owner, cookie, denied = _owner_context()
     max_file_size_gb = MAX_FILE_SIZE / (1024**3)
-    return render_template("logs/home.html", max_file_size_gb=max_file_size_gb)
+    return _finish(
+        render_template("logs/home.html", max_file_size_gb=max_file_size_gb),
+        cookie=None if denied else cookie,
+    )
 
 
 @bp.route("/uploadLogs", methods=["POST"])
 def upload_logs():
-    return upload_file()
+    owner, cookie, denied = _owner_context()
+    if denied:
+        return jsonify({"error": "Kanopy identity required"}), 401
+    g.mi_file_owner = owner
+    return _finish(upload_file(), cookie=cookie)
 
 
 @bp.route("/search_logs")
@@ -49,6 +72,10 @@ def search_logs():
         return jsonify({"error": "Missing store_id parameter"}), 400
     if not is_valid_store_id(store_id):
         return jsonify({"error": "Invalid store_id parameter"}), 400
+
+    owner, cookie, denied = _owner_context()
+    if denied or not store_owned_by(store_id, owner):
+        return _finish(jsonify({"error": "Log store not found or expired"}), cookie=cookie, status=404)
 
     q = request.args.get("q", "").strip()
     level = request.args.get("level", "").strip()
@@ -88,32 +115,40 @@ def search_logs():
         result = store.find(query, skip=(page - 1) * per_page, limit=per_page)
         result["page"] = page
         result["per_page"] = per_page
-        return jsonify(result)
+        return _finish(jsonify(result), cookie=cookie)
     except InvalidLogTimestamp as e:
-        return jsonify({"error": str(e)}), 400
+        return _finish(jsonify({"error": str(e)}), cookie=cookie, status=400)
     except Exception as e:
         logger.error("Log search error: %s", e)
-        return jsonify({"error": "Search failed", "detail": str(e)}), 500
+        return _finish(jsonify({"error": "Search failed", "detail": str(e)}), cookie=cookie, status=500)
 
 
 @bp.route("/list_snapshots")
 def list_snapshots():
+    owner, cookie, denied = _owner_context()
+    if denied:
+        return jsonify([])
     try:
-        snapshots = get_snapshot_list()
-        return jsonify(snapshots)
+        snapshots = get_snapshot_list(owner)
+        return _finish(jsonify(snapshots), cookie=cookie)
     except Exception as e:
         logger.error("Error listing snapshots: %s", e)
-        return jsonify([])
+        return _finish(jsonify([]), cookie=cookie)
 
 
 @bp.route("/load_snapshot/<snapshot_id>")
 def load_snapshot_view(snapshot_id):
-    if not is_valid_store_id(snapshot_id):
-        return render_template("error.html", **_SNAPSHOT_NOT_FOUND_KWARGS)
+    owner, cookie, denied = _owner_context()
+    if (
+        not is_valid_store_id(snapshot_id)
+        or denied
+        or read_snapshot_owner(snapshot_id) != owner
+    ):
+        return _finish(render_template("error.html", **_SNAPSHOT_NOT_FOUND_KWARGS), cookie=cookie)
 
     data = load_snapshot(snapshot_id)
     if data is None:
-        return render_template("error.html", **_SNAPSHOT_NOT_FOUND_KWARGS)
+        return _finish(render_template("error.html", **_SNAPSHOT_NOT_FOUND_KWARGS), cookie=cookie)
 
     store_id = data.get("log_store_id", "")
     if store_id and is_valid_store_id(store_id):
@@ -136,17 +171,20 @@ def load_snapshot_view(snapshot_id):
     template_data.setdefault("has_busiest_collections_data", False)
     if not template_data.get("source_filename"):
         template_data["source_filename"] = data.get("source_filename", "")
-    return render_template("upload_results.html", **template_data)
+    return _finish(render_template("upload_results.html", **template_data), cookie=cookie)
 
 
 @bp.route("/delete_snapshot/<snapshot_id>", methods=["DELETE"])
 def delete_snapshot_view(snapshot_id):
+    owner, cookie, denied = _owner_context()
+    if denied:
+        return jsonify({"error": "Kanopy identity required"}), 401
     if not is_valid_store_id(snapshot_id):
-        return jsonify({"error": "Snapshot not found"}), 404
+        return _finish(jsonify({"error": "Snapshot not found"}), cookie=cookie, status=404)
 
-    deleted, store_id = remove_snapshot(snapshot_id)
+    deleted, store_id = remove_snapshot(snapshot_id, owner=owner)
     if store_id:
         log_store_registry.remove(store_id)
     if deleted:
-        return jsonify({"status": "ok"})
-    return jsonify({"error": "Snapshot not found"}), 404
+        return _finish(jsonify({"status": "ok"}), cookie=cookie)
+    return _finish(jsonify({"error": "Snapshot not found"}), cookie=cookie, status=404)

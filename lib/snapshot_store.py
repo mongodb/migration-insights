@@ -66,6 +66,7 @@ def save_snapshot(
     line_count: int,
     log_store_id: str,
     template_data: dict[str, Any],
+    owner: str = "",
 ) -> str:
     """
     Save all parsed analysis data to a JSON file on disk.
@@ -81,6 +82,7 @@ def save_snapshot(
         'source_size_bytes': source_size,
         'line_count': line_count,
         'log_store_id': log_store_id,
+        'owner': owner or "",
         'template_data': template_data,
     }
     with open(path, 'w', encoding='utf-8') as f:
@@ -155,6 +157,7 @@ def _append_snapshot_row(
     mtime: float,
     data: dict,
     sid_from_file: str,
+    owner: Optional[str] = None,
 ) -> None:
     age_hours = (time.time() - mtime) / 3600
     if age_hours > LOG_STORE_MAX_AGE_HOURS:
@@ -166,6 +169,9 @@ def _append_snapshot_row(
         logger.warning('Skipping snapshot with invalid id %r', snapshot_id)
         return
     seen_ids.add(snapshot_id)
+    stored_owner = data.get('owner') or ""
+    if owner is not None and (not owner or stored_owner != owner):
+        return
     results.append({
         'snapshot_id': snapshot_id,
         'source_filename': data.get('source_filename', 'Unknown'),
@@ -178,13 +184,14 @@ def _append_snapshot_row(
     })
 
 
-def list_snapshots() -> list[dict]:
+def list_snapshots(owner: Optional[str] = None) -> list[dict]:
     """
     Scan LOG_STORE_DIR for snapshot metadata sidecars and return listing fields.
 
     Reads small ``mi_snapshot_<id>.meta.json`` files (no ``template_data``).
     Legacy snapshots with only the main ``.json`` file are listed by parsing
-    the full file once.
+    the full file once. When ``owner`` is set, only snapshots with that owner
+    are returned. Snapshots with no owner are omitted from a filtered list.
 
     Returns a list sorted by mtime descending (most recent first).
     """
@@ -202,7 +209,7 @@ def list_snapshots() -> list[dict]:
             if not is_valid_store_id(suffix):
                 logger.warning('Skipping snapshot meta with invalid id suffix %r', suffix)
                 continue
-            _append_snapshot_row(results, seen_ids, mtime, data, suffix)
+            _append_snapshot_row(results, seen_ids, mtime, data, suffix, owner)
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"Skipping unreadable snapshot meta {filepath}: {e}")
             continue
@@ -222,7 +229,7 @@ def list_snapshots() -> list[dict]:
             mtime = os.path.getmtime(filepath)
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            _append_snapshot_row(results, seen_ids, mtime, data, sid)
+            _append_snapshot_row(results, seen_ids, mtime, data, sid, owner)
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"Skipping unreadable legacy snapshot {filepath}: {e}")
             continue
@@ -233,7 +240,43 @@ def list_snapshots() -> list[dict]:
     return results
 
 
-def delete_snapshot(snapshot_id: str) -> tuple[bool, str]:
+def read_snapshot_owner(snapshot_id: str) -> Optional[str]:
+    """Return the stored owner, '' when unset, or None when the snapshot is missing."""
+    try:
+        meta_path = _snapshot_meta_path(snapshot_id)
+        path = _snapshot_path(snapshot_id)
+    except ValueError:
+        return None
+    for candidate in (meta_path, path):
+        if not os.path.exists(candidate):
+            continue
+        try:
+            with open(candidate, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if isinstance(data, dict):
+            return data.get('owner') or ""
+    return None
+
+
+def store_owned_by(store_id: str, owner: str) -> bool:
+    """True when a snapshot owned by ``owner`` references this log store."""
+    if not owner or not is_valid_store_id(store_id):
+        return False
+    meta_pattern = os.path.join(LOG_STORE_DIR, f'{_SNAPSHOT_PREFIX}*.meta.json')
+    for filepath in glob.glob(meta_pattern):
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if data.get('log_store_id') == store_id and (data.get('owner') or "") == owner:
+            return True
+    return False
+
+
+def delete_snapshot(snapshot_id: str, owner: Optional[str] = None) -> tuple[bool, str]:
     """
     Delete a snapshot JSON file, its metadata sidecar, and its SQLite DB.
 
@@ -246,6 +289,11 @@ def delete_snapshot(snapshot_id: str) -> tuple[bool, str]:
     except ValueError as e:
         logger.warning('Invalid snapshot id %r: %s', snapshot_id, e)
         return False, ''
+
+    if owner is not None:
+        stored = read_snapshot_owner(snapshot_id)
+        if not owner or stored != owner:
+            return False, ''
 
     deleted = False
     store_id = ''

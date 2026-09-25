@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 from plotly.utils import PlotlyJSONEncoder
 from plotly.subplots import make_subplots
 from tqdm import tqdm
-from flask import request, render_template
+from flask import g, request, render_template
 import gzip
 import json
 import uuid as uuid_mod
@@ -1804,7 +1804,15 @@ def upload_file():
 
         snapshot_id = str(uuid_mod.uuid4())
         try:
-            save_snapshot(snapshot_id, filename, file_size, line_count, store_id, template_data)
+            save_snapshot(
+                snapshot_id,
+                filename,
+                file_size,
+                line_count,
+                store_id,
+                template_data,
+                owner=getattr(g, "mi_file_owner", "") or "",
+            )
         except Exception as e:
             logger.warning(f"Failed to save snapshot: {e}")
 

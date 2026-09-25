@@ -8,10 +8,20 @@ from unittest.mock import patch
 import pytest
 
 from lib import snapshot_store
+from lib.file_owner import OWNER_COOKIE_NAME
 from lib.log_store import LogStore
 from lib.log_store_registry import log_store_registry
 
 FIXTURES = Path(__file__).parent / "fixtures"
+_OWNER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+
+
+def _as_owner(app_client, store_id=None):
+    app_client.set_cookie(OWNER_COOKIE_NAME, _OWNER)
+    if store_id is not None:
+        snapshot_store.save_snapshot(
+            str(uuid.uuid4()), "owned.log", 1, 1, store_id, {}, owner=_OWNER
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -67,6 +77,7 @@ class TestSearchLogs:
         store.build_fts_index()
         store.close()
         log_store_registry.register(store_id, db_path)
+        _as_owner(app_client, store_id)
         r = app_client.get(f"/logs/search_logs?store_id={store_id}&q=Replication")
         assert r.status_code == 200
         body = r.get_json()
@@ -84,6 +95,7 @@ class TestSearchLogs:
         store.build_fts_index()
         store.close()
         log_store_registry.register(store_id, db_path)
+        _as_owner(app_client, store_id)
 
         r = app_client.get(
             "/logs/search_logs"
@@ -108,6 +120,7 @@ class TestSearchLogs:
         store.build_fts_index()
         store.close()
         log_store_registry.register(store_id, db_path)
+        _as_owner(app_client, store_id)
 
         r = app_client.get(
             "/logs/search_logs"
@@ -131,6 +144,7 @@ class TestSearchLogs:
         store.build_fts_index()
         store.close()
         log_store_registry.register(store_id, db_path)
+        _as_owner(app_client, store_id)
 
         r = app_client.get(
             f"/logs/search_logs?store_id={store_id}&start=2026-01-01T10:00:00"
@@ -152,6 +166,7 @@ class TestSearchLogs:
         store.build_fts_index()
         store.close()
         log_store_registry.register(store_id, db_path)
+        _as_owner(app_client, store_id)
 
         r = app_client.get(
             f"/logs/search_logs?store_id={store_id}&start=2026-01-01T10:30:00.000Z"
@@ -167,6 +182,7 @@ class TestSearchLogs:
         store.build_fts_index()
         store.close()
         log_store_registry.register(store_id, db_path)
+        _as_owner(app_client, store_id)
 
         r = app_client.get(f"/logs/search_logs?store_id={store_id}&start=not-a-date")
         assert r.status_code == 400
@@ -179,6 +195,7 @@ class TestSearchLogs:
         store.build_fts_index()
         store.close()
         log_store_registry.register(store_id, db_path)
+        _as_owner(app_client, store_id)
 
         r = app_client.get(
             "/logs/search_logs"
@@ -205,8 +222,9 @@ class TestSnapshotRoutes:
         data = dict(minimal_template_data)
         data["log_store_id"] = store_id
         snapshot_store.save_snapshot(
-            snapshot_id, "mongosync.log", 10, 1, store_id, data
+            snapshot_id, "mongosync.log", 10, 1, store_id, data, owner=_OWNER
         )
+        _as_owner(app_client)
         r = app_client.get(f"/logs/load_snapshot/{snapshot_id}")
         assert r.status_code == 200
         assert b"Migration Insights - Log Analyzer" in r.data

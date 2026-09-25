@@ -37,6 +37,7 @@ Invalid numeric environment variables or an unrecognized `LOG_LEVEL` cause immed
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 | `MI_LOG_FILE` | `insights.log` | Path to log file (used when `MI_LOG_JSON` is false) |
 | `MI_LOG_JSON` | `false` | When `true`, emit one JSON object per line on stdout (Kanopy/Splunk) and skip `MI_LOG_FILE`. |
+| `MI_KANOPY_IDENTITY` | `false` | When `true`, the owner of a saved log analysis is the Kanopy JWT `sub` (username) from `X-Kanopy-Internal-Authorization`, then `X-Forwarded-User-Token`, then `Authorization`. The mesh verifies the signature; Migration Insights only reads the payload. A missing or invalid token makes upload and delete return 401 and the previous-analyses list empty. When `false`, the owner is the HttpOnly cookie `mi_file_owner` (a random id, set for one year on the first logs visit or upload). List, load, search, replace, and click-delete only see that owner. Age cleanup deletes expired files regardless of owner. |
 
 ### MongoDB Connection
 
