@@ -6,8 +6,8 @@ platform:
   arch: arm64
 
 # Deployment flow:
-# - Push to staging → publish (build+push image) + deploy-staging  [for testing only]
-# - Push to master  → publish (build+push image) + deploy-staging  [reviewed]
+# - Push to staging → test + publish (build+push image) + deploy-staging  [for testing only]
+# - Push to master  → test + publish (build+push image) + deploy-staging  [reviewed]
 # - Drone promote   → deploy-prod only (reuses existing image, no rebuild)
 #   Go to Drone UI → find a build → Promote → target: production
 #
@@ -22,6 +22,15 @@ trigger:
   - master
 
 steps:
+- name: test
+  image: python:3.11
+  commands:
+  - pip install -r requirements.txt -r requirements-dev.txt
+  - python -m pytest tests/ -q
+  when:
+    event:
+    - push
+
 - name: publish
   image: plugins/kaniko-ecr
   settings:
