@@ -35,6 +35,11 @@ class TestCreateApp:
         r = app_client.get("/")
         assert r.status_code == 200
 
+    def test_health_route(self, app_client):
+        r = app_client.get("/health")
+        assert r.status_code == 200
+        assert r.get_data(as_text=True) == "ok"
+
 
 class TestSecurityHeaders:
     def test_img_src_does_not_allow_arbitrary_remote_hosts(self, app_client):

@@ -114,6 +114,10 @@ def create_app():
     def hub():
         return render_template("hub.html")
 
+    @app.route("/health")
+    def health():
+        return "ok", 200
+
     @app.route("/logout", methods=["POST"])
     def logout():
         session_id = request.cookies.get(SESSION_COOKIE_NAME)

@@ -1,0 +1,77 @@
+---
+kind: pipeline
+type: kubernetes
+name: default
+platform:
+  arch: arm64
+
+# Deployment flow:
+# - Push to staging → publish (build+push image) + deploy-staging  [for testing only]
+# - Push to master  → publish (build+push image) + deploy-staging  [reviewed]
+# - Drone promote   → deploy-prod only (reuses existing image, no rebuild)
+#   Go to Drone UI → find a build → Promote → target: production
+#
+# WARNING: Only promote builds from `master` to prod.
+#     Do NOT promote a staging-branch build — it may contain unreviewed/WIP code.
+trigger:
+  event:
+  - push
+  - promote
+  branch:
+  - staging
+  - master
+
+steps:
+- name: publish
+  image: plugins/kaniko-ecr
+  settings:
+    create_repository: true
+    registry: 795250896452.dkr.ecr.us-east-1.amazonaws.com
+    repo: ts-mf/${DRONE_REPO_NAME}
+    tags:
+    - git-${DRONE_COMMIT_SHA:0:7}
+    - latest
+    access_key:
+      from_secret: ecr_access_key
+    secret_key:
+      from_secret: ecr_secret_key
+  when:
+    event:
+    - push
+
+- name: deploy-staging
+  image: public.ecr.aws/kanopy/drone-helm:v3
+  settings:
+    chart: mongodb/web-app
+    chart_version: 4.30.0
+    add_repos: [mongodb=https://10gen.github.io/helm-charts]
+    namespace: ts-mf
+    release: migrationinsights
+    values: arch=arm64,image.tag=git-${DRONE_COMMIT_SHA:0:7},image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/ts-mf/${DRONE_REPO_NAME},service.port=80,service.targetPort=3030,ingress.enabled=true,ingress.hosts[0]=migrationinsights.ts-mf.staging.corp.mongodb.com,mesh.enabled=true,mesh.timeout=3600s,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"=10240m,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-read-timeout"=3600,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-send-timeout"=3600,mesh.annotations."nginx\.ingress\.kubernetes\.io/client-body-timeout"=3600,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-connect-timeout"=3600,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-buffer-size"=128k,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-buffers-number"=8,mesh.annotations."nginx\.ingress\.kubernetes\.io/client-body-buffer-size"=128k,resources.requests.memory=1Gi,resources.requests.cpu=500m,resources.limits.memory=4Gi,resources.limits.cpu=2000m,replicaCount=1,probes.enabled=true,probes.path=/health,probes.liveness.initialDelaySeconds=10,probes.liveness.periodSeconds=30,probes.liveness.failureThreshold=3,probes.readiness.initialDelaySeconds=10,probes.readiness.periodSeconds=10,probes.readiness.failureThreshold=3,ownership.driEmail=mf-ts@mongodb.com,security.dataClassification="Highly Confidential",security.dataDesignation[0]=CI,security.dataDesignation[1]=MSI
+    api_server: https://api.staging.corp.mongodb.com
+    kubernetes_token:
+      from_secret: staging_kubernetes_token
+  when:
+    branch:
+    - staging
+    - master
+    event:
+    - push
+
+- name: deploy-prod
+  image: public.ecr.aws/kanopy/drone-helm:v3
+  settings:
+    chart: mongodb/web-app
+    chart_version: 4.30.0
+    add_repos: [mongodb=https://10gen.github.io/helm-charts]
+    namespace: ts-mf
+    release: migrationinsights
+    values: arch=arm64,image.tag=git-${DRONE_COMMIT_SHA:0:7},image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/ts-mf/${DRONE_REPO_NAME},service.port=80,service.targetPort=3030,ingress.enabled=true,ingress.hosts[0]=migrationinsights.ts-mf.prod.corp.mongodb.com,mesh.enabled=true,mesh.timeout=3600s,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"=10240m,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-read-timeout"=3600,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-send-timeout"=3600,mesh.annotations."nginx\.ingress\.kubernetes\.io/client-body-timeout"=3600,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-connect-timeout"=3600,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-buffer-size"=128k,mesh.annotations."nginx\.ingress\.kubernetes\.io/proxy-buffers-number"=8,mesh.annotations."nginx\.ingress\.kubernetes\.io/client-body-buffer-size"=128k,resources.requests.memory=1Gi,resources.requests.cpu=500m,resources.limits.memory=4Gi,resources.limits.cpu=2000m,replicaCount=1,podDisruptionBudget.enabled=false,probes.enabled=true,probes.path=/health,probes.liveness.initialDelaySeconds=10,probes.liveness.periodSeconds=30,probes.liveness.failureThreshold=3,probes.readiness.initialDelaySeconds=10,probes.readiness.periodSeconds=10,probes.readiness.failureThreshold=3,defaultAlerts.enabled=true,defaultAlerts.email=mf-ts@mongodb.com,ownership.driEmail=mf-ts@mongodb.com,security.dataClassification="Highly Confidential",security.dataDesignation[0]=CI,security.dataDesignation[1]=MSI
+    api_server: https://api.prod.corp.mongodb.com
+    kubernetes_token:
+      from_secret: prod_kubernetes_token
+  when:
+    event:
+    - promote
+    target:
+    - production
