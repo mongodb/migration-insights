@@ -42,6 +42,15 @@ python3 migration_insights.py
 
 Open `http://127.0.0.1:3030` (default host/port).
 
+Docker (Flask listens on container port 3030; host publishes 8080):
+
+```bash
+docker build -t migration-insights .
+docker run --rm -p 8080:3030 migration-insights
+```
+
+Open `http://127.0.0.1:8080`.
+
 For **other installation options** (macOS/Windows standalone executables, Linux RPM/DEB packages), see **[PACKAGING.md](PACKAGING.md)**.
 
 To **configure** host, port, connection strings, refresh intervals, and other settings via environment variables, see **[CONFIGURATION.md](CONFIGURATION.md)**. Example pre-configuration before starting:
