@@ -5,9 +5,11 @@ import sys
 from flask import (
     Flask,
     make_response,
+    redirect,
     render_template,
     request,
     send_from_directory,
+    url_for,
 )
 from markupsafe import Markup
 
@@ -19,6 +21,7 @@ try:
         MAX_FILE_SIZE,
         PORT,
         get_app_info,
+        parse_env_bool,
         session_store,
         setup_logging,
         validate_config,
@@ -60,6 +63,8 @@ def create_app():
         static_url_path="/images",
     )
     app.config["MAX_CONTENT_LENGTH"] = MAX_FILE_SIZE
+    monitoring_on = parse_env_bool("MI_MONITORING_ENABLED", True)
+    app.config["MI_MONITORING_ENABLED"] = monitoring_on
     app.jinja_env.filters["inline_json"] = _inline_json_filter
 
     @app.route("/static/js/<path:filename>")
@@ -94,7 +99,11 @@ def create_app():
 
     @app.context_processor
     def inject_app_version():
-        return dict(app_version=APP_VERSION, developer_credits=DEVELOPER_CREDITS)
+        return dict(
+            app_version=APP_VERSION,
+            developer_credits=DEVELOPER_CREDITS,
+            monitoring_enabled=app.config["MI_MONITORING_ENABLED"],
+        )
 
     @app.errorhandler(413)
     def too_large(e):
@@ -112,6 +121,8 @@ def create_app():
 
     @app.route("/")
     def hub():
+        if not app.config["MI_MONITORING_ENABLED"]:
+            return redirect(url_for("logs.logs_home"))
         return render_template("hub.html")
 
     @app.route("/health")
@@ -129,7 +140,8 @@ def create_app():
         return response
 
     app.register_blueprint(logs_bp)
-    app.register_blueprint(live_bp)
+    if monitoring_on:
+        app.register_blueprint(live_bp)
 
     run_log_store_maintenance()
 

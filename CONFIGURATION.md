@@ -33,6 +33,7 @@ Invalid numeric environment variables or an unrecognized `LOG_LEVEL` cause immed
 |----------|---------|-------------|
 | `MI_HOST` | `127.0.0.1` | Server host address (use `0.0.0.0` for all interfaces) |
 | `MI_PORT` | `3030` | Server port number |
+| `MI_MONITORING_ENABLED` | `true` | When `false`, `/` redirects to `/logs/` and Migration Monitoring (`/live`) is not registered. |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 | `MI_LOG_FILE` | `insights.log` | Path to log file |
 

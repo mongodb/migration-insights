@@ -19,6 +19,7 @@ from lib.app_config import (
     is_multi_file_archive,
     load_error_patterns,
     normalize_progress_endpoint_url,
+    parse_env_bool,
     parse_env_int,
     probe_metadata_databases,
     resolve_mongosync_db_name,
@@ -75,6 +76,32 @@ class TestParseEnvInt:
         with patch.dict(os.environ, {"MI_TEST_INT": "70000"}):
             with pytest.raises(ValueError, match="<= 65535"):
                 parse_env_int("MI_TEST_INT", 42, max_value=65535)
+
+
+class TestParseEnvBool:
+    def test_default_when_unset(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("MI_MONITORING_ENABLED", None)
+            assert parse_env_bool("MI_MONITORING_ENABLED", True) is True
+
+    def test_true_values(self):
+        for raw in ("true", "True", "1", "yes"):
+            with patch.dict(os.environ, {"MI_MONITORING_ENABLED": raw}):
+                assert parse_env_bool("MI_MONITORING_ENABLED", False) is True
+
+    def test_false_values(self):
+        for raw in ("false", "False", "0", "no"):
+            with patch.dict(os.environ, {"MI_MONITORING_ENABLED": raw}):
+                assert parse_env_bool("MI_MONITORING_ENABLED", True) is False
+
+    def test_empty_string_uses_default(self):
+        with patch.dict(os.environ, {"MI_MONITORING_ENABLED": ""}):
+            assert parse_env_bool("MI_MONITORING_ENABLED", True) is True
+
+    def test_invalid_raises(self):
+        with patch.dict(os.environ, {"MI_MONITORING_ENABLED": "maybe"}):
+            with pytest.raises(ValueError, match="MI_MONITORING_ENABLED"):
+                parse_env_bool("MI_MONITORING_ENABLED", True)
 
 
 class TestValidateConfig:

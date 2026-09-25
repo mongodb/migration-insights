@@ -35,6 +35,26 @@ class TestCreateApp:
         r = app_client.get("/")
         assert r.status_code == 200
 
+    def test_hub_redirects_to_logs_when_monitoring_disabled(
+        self, tmp_path, monkeypatch
+    ):
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        monkeypatch.setenv("MI_LOG_FILE", str(log_dir / "insights.log"))
+        monkeypatch.setenv("MI_MONITORING_ENABLED", "false")
+        with patch("lib.app_config.validate_config", return_value=True):
+            with patch("lib.app_config.setup_logging") as mock_log:
+                mock_log.return_value = __import__("logging").getLogger("test")
+                from migration_insights import create_app
+
+                app = create_app()
+                app.config["TESTING"] = True
+                client = app.test_client()
+                r = client.get("/")
+                assert r.status_code == 302
+                assert r.headers["Location"].endswith("/logs/")
+                assert client.get("/live/").status_code == 404
+
     def test_health_route(self, app_client):
         r = app_client.get("/health")
         assert r.status_code == 200

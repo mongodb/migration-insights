@@ -11,7 +11,9 @@
 {% endblock %}
 
 {% block content %}
+{% if monitoring_enabled %}
 <div class="mi-back"><a href="{{ url_for('hub') }}">&larr; Back to home</a></div>
+{% endif %}
 <div class="version-info">
     <h1 style="margin-bottom: 0;">Migration Insights <span class="version-tag">v{{ app_version }}</span></h1>
 </div>

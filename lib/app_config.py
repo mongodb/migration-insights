@@ -48,6 +48,22 @@ def parse_env_int(
     return value
 
 
+def parse_env_bool(env_name: str, default: bool) -> bool:
+    """Parse a boolean environment variable (true/false, 1/0, yes/no)."""
+    raw = os.getenv(env_name)
+    if raw is None or raw.strip() == "":
+        return default
+    val = raw.strip().lower()
+    if val in ("true", "1", "yes"):
+        return True
+    if val in ("false", "0", "no"):
+        return False
+    raise ValueError(
+        f"Invalid {env_name}: {raw!r}. "
+        "Must be true, false, 1, 0, yes, or no."
+    )
+
+
 # Environment variable configuration
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 LOG_FILE = os.getenv('MI_LOG_FILE', 'insights.log')
@@ -414,6 +430,8 @@ def validate_config():
     
     if not os.access(log_dir, os.W_OK):
         raise PermissionError(f"Cannot write to log directory: {log_dir}")
+
+    parse_env_bool("MI_MONITORING_ENABLED", True)
 
     level_name = LOG_LEVEL.upper()
     if level_name not in VALID_LOG_LEVELS:
