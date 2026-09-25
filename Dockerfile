@@ -15,7 +15,7 @@ COPY images ./images
 ENV MI_HOST=0.0.0.0 \
     MI_PORT=3030 \
     MI_SSL_ENABLED=false \
-    MI_LOG_FILE=/tmp/insights.log \
+    MI_LOG_JSON=true \
     PYTHONUNBUFFERED=1
 
 EXPOSE 3030

@@ -35,7 +35,8 @@ Invalid numeric environment variables or an unrecognized `LOG_LEVEL` cause immed
 | `MI_PORT` | `3030` | Server port number |
 | `MI_MONITORING_ENABLED` | `true` | When `false`, `/` redirects to `/logs/` and Migration Monitoring (`/live`) is not registered. |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `MI_LOG_FILE` | `insights.log` | Path to log file |
+| `MI_LOG_FILE` | `insights.log` | Path to log file (used when `MI_LOG_JSON` is false) |
+| `MI_LOG_JSON` | `false` | When `true`, emit one JSON object per line on stdout (Kanopy/Splunk) and skip `MI_LOG_FILE`. |
 
 ### MongoDB Connection
 

@@ -1,5 +1,6 @@
 """Tests for environment variable parsing and startup validation."""
 import json
+import logging
 import os
 import time
 from unittest.mock import MagicMock, patch
@@ -23,6 +24,7 @@ from lib.app_config import (
     parse_env_int,
     probe_metadata_databases,
     resolve_mongosync_db_name,
+    setup_logging,
     validate_api_endpoint_url,
     validate_config,
     validate_connection,
@@ -104,6 +106,51 @@ class TestParseEnvBool:
                 parse_env_bool("MI_MONITORING_ENABLED", True)
 
 
+class TestSetupLogging:
+    def _restore_root(self, root, handlers, level):
+        root.handlers.clear()
+        for handler in handlers:
+            root.addHandler(handler)
+        root.setLevel(level)
+
+    def test_file_mode_writes_text_log(self, tmp_path, monkeypatch):
+        log_path = tmp_path / "insights.log"
+        monkeypatch.delenv("MI_LOG_JSON", raising=False)
+        monkeypatch.setattr(app_config, "LOG_FILE", str(log_path))
+        root = logging.getLogger()
+        handlers = list(root.handlers)
+        level = root.level
+        try:
+            logger = setup_logging()
+            logger.info("file-mode-message")
+            for handler in root.handlers:
+                handler.flush()
+            text = log_path.read_text()
+            assert "file-mode-message" in text
+            assert "INFO" in text
+        finally:
+            self._restore_root(root, handlers, level)
+
+    def test_json_mode_writes_stdout(self, capsys, monkeypatch):
+        monkeypatch.setenv("MI_LOG_JSON", "true")
+        root = logging.getLogger()
+        handlers = list(root.handlers)
+        level = root.level
+        try:
+            logger = setup_logging()
+            logger.info("json-mode-message")
+            for handler in root.handlers:
+                handler.flush()
+            line = capsys.readouterr().out.strip().splitlines()[-1]
+            payload = json.loads(line)
+            assert payload["message"] == "json-mode-message"
+            assert payload["level"] == "INFO"
+            assert "logger" in payload
+            assert "asctime" in payload
+        finally:
+            self._restore_root(root, handlers, level)
+
+
 class TestValidateConfig:
     @patch.object(app_config, "LOG_LEVEL", "VERBOSE")
     @patch("lib.app_config.os.access", return_value=True)
@@ -126,6 +173,13 @@ class TestValidateConfig:
     def test_accepts_log_level_case_insensitive(self, mock_path, mock_access):
         mock_path.return_value.parent.exists.return_value = True
         assert validate_config() is True
+
+    @patch.object(app_config, "LOG_LEVEL", "INFO")
+    @patch("lib.app_config.os.access", return_value=False)
+    def test_json_mode_skips_log_file_writable_check(self, mock_access):
+        with patch.dict(os.environ, {"MI_LOG_JSON": "true"}):
+            assert validate_config() is True
+        mock_access.assert_not_called()
 
     @patch.object(app_config, "PROGRESS_ENDPOINT_URL", "host:70000/api/v1/progress")
     @patch.object(app_config, "_raw_progress_endpoint", "host:70000")

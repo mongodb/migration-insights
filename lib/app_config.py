@@ -2,13 +2,15 @@
 Configuration management for Migration Insights.
 Supports environment variables and configurable paths.
 """
+import json
+import logging
 import os
 import re
-import logging
-import uuid
-import time
+import sys
 import tempfile
 import threading
+import time
+import uuid
 from pathlib import Path
 from functools import lru_cache
 from typing import Optional
@@ -400,14 +402,36 @@ def load_error_patterns():
         logger.error(f"Error loading error patterns: {e}")
         return []
 
+class _JsonLogFormatter(logging.Formatter):
+    """One JSON object per line for Splunk / centralized logging."""
+
+    def format(self, record):
+        payload = {
+            "asctime": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        return json.dumps(payload, default=str)
+
+
 def setup_logging():
     """Configure logging based on environment variables."""
     log_level = getattr(logging, LOG_LEVEL.upper())
-    logging.basicConfig(
-        filename=LOG_FILE,
-        level=log_level,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
+    root = logging.getLogger()
+    root.setLevel(log_level)
+    root.handlers.clear()
+
+    if parse_env_bool("MI_LOG_JSON", False):
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(_JsonLogFormatter())
+    else:
+        handler = logging.FileHandler(LOG_FILE)
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        )
+    handler.setLevel(log_level)
+    root.addHandler(handler)
     return logging.getLogger(__name__)
 
 def get_app_info():
@@ -422,14 +446,15 @@ def get_app_info():
 
 def validate_config():
     """Validate configuration on startup."""
-    # Check if log file directory is writable
-    log_file = Path(LOG_FILE)
-    log_dir = log_file.parent
-    if not log_dir.exists():
-        log_dir.mkdir(parents=True, exist_ok=True)
-    
-    if not os.access(log_dir, os.W_OK):
-        raise PermissionError(f"Cannot write to log directory: {log_dir}")
+    json_logs = parse_env_bool("MI_LOG_JSON", False)
+    if not json_logs:
+        log_file = Path(LOG_FILE)
+        log_dir = log_file.parent
+        if not log_dir.exists():
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+        if not os.access(log_dir, os.W_OK):
+            raise PermissionError(f"Cannot write to log directory: {log_dir}")
 
     parse_env_bool("MI_MONITORING_ENABLED", True)
 
