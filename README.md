@@ -42,7 +42,7 @@ python3 migration_insights.py
 
 Open `http://127.0.0.1:3030` (default host/port).
 
-Docker (Flask listens on container port 3030; host publishes 8080):
+Docker (Gunicorn listens on container port 3030; host publishes 8080). Local `python3 migration_insights.py` still uses Flask on 3030:
 
 ```bash
 docker build -t migration-insights .

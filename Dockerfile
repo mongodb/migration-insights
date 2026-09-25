@@ -20,4 +20,4 @@ ENV MI_HOST=0.0.0.0 \
 
 EXPOSE 3030
 
-CMD ["python3", "migration_insights.py"]
+CMD ["gunicorn", "--workers=1", "--threads=4", "--worker-class=gthread", "--bind=0.0.0.0:3030", "--timeout=3600", "--graceful-timeout=30", "--access-logfile=-", "--error-logfile=-", "migration_insights:app"]
