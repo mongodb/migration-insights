@@ -1,5 +1,7 @@
 """End-to-end upload tests using committed fixtures."""
+import io
 import json
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,6 +27,16 @@ def _plot_payload(html):
     raise AssertionError("could not delimit plot payload")
 
 
+def _zip_logs_and_metrics():
+    """Build an in-memory zip that includes both fixture kinds."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.write(FIXTURES / "sample_mongosync.log", "mongosync.log")
+        zf.write(FIXTURES / "sample_mongosync_metrics.log", "mongosync_metrics.log")
+    buf.seek(0)
+    return buf
+
+
 @pytest.fixture(autouse=True)
 def _isolated_registry(monkeypatch, tmp_path):
     monkeypatch.setattr(snapshot_store, "LOG_STORE_DIR", str(tmp_path / "store"))
@@ -46,6 +58,10 @@ class TestUploadFixtures:
         assert r.status_code == 200
         assert b'id="tab-summary"' in r.data
         assert b"Summary" in r.data
+        assert b'id="tab-metrics"' in r.data
+        assert b"No metrics in this upload." in r.data
+        assert b'id="summary-tab" class="tab-content active"' in r.data
+        assert b"No mongosync log lines in this upload." not in r.data
         snapshots = snapshot_store.list_snapshots()
         assert len(snapshots) >= 1
         assert snapshots[0]["line_count"] > 0
@@ -76,6 +92,34 @@ class TestUploadFixtures:
                 "/logs/uploadLogs", data=data, content_type="multipart/form-data"
             )
         assert r.status_code == 200
+        assert b'id="tab-metrics"' in r.data
+        assert b'id="tab-charts"' in r.data
+        assert b'id="tab-summary"' in r.data
+        assert b'id="tab-options"' in r.data
+        assert b'id="tab-collections"' in r.data
+        assert b'id="tab-busiest"' in r.data
+        assert b'id="tab-errors"' in r.data
+        assert b'id="tab-logviewer"' in r.data
+        assert b"No mongosync log lines in this upload." in r.data
+        assert b'id="metrics-tab" class="tab-content active"' in r.data
+        assert b"No metrics in this upload." not in r.data
+        assert b"hasLogsData: false" in r.data
+        assert b"hasMetricsData: true" in r.data
+
+    @patch("lib.logs_metrics.create_metrics_plots", return_value="{}")
+    def test_upload_logs_and_metrics_together(self, _mock_plots, app_client):
+        data = {"file": (_zip_logs_and_metrics(), "mongosync_bundle.zip")}
+        r = app_client.post(
+            "/logs/uploadLogs", data=data, content_type="multipart/form-data"
+        )
+        assert r.status_code == 200
+        assert b'id="summary-tab" class="tab-content active"' in r.data
+        assert b"hasLogsData: true" in r.data
+        assert b"hasMetricsData: true" in r.data
+        assert b"No metrics in this upload." not in r.data
+        assert b"No mongosync log lines in this upload." not in r.data
+        assert b'id="metrics-plot"' in r.data
+        assert b'id="plot"' in r.data
 
     @patch("lib.logs_metrics.create_metrics_plots", return_value="")
     def test_search_after_upload(self, _mock_plots, app_client):

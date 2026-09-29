@@ -25,49 +25,66 @@
 {% endblock %}
 
 {% block content %}
+{% set metrics_empty_banner %}
+<div class="options-info-banner" role="note">
+    <strong>No metrics in this upload.</strong>
+    Include <code>mongosync_metrics.log</code> (filename must contain <code>metrics</code>) and re-upload.
+</div>
+{% endset %}
+{% set logs_empty_banner %}
+<div class="options-info-banner" role="note">
+    <strong>No mongosync log lines in this upload.</strong>
+    Include mongosync log files (filename must contain <code>mongosync</code> or <code>liveimport</code>) and re-upload logs and metrics together.
+</div>
+{% endset %}
 <div class="ur-main">
 <div class="tabs-container">
-    <div class="tab-buttons" role="tablist" aria-label="Log analysis sections">{%- if has_logs_data %}
-        <button type="button" class="tab-btn active" role="tab" id="tab-summary" aria-controls="summary-tab" aria-selected="true" tabindex="0" onclick="switchTab('summary')">Summary</button>{%- endif %}
-        {%- if has_logs_data or (not has_metrics_data) %}
-        <button type="button" class="tab-btn {% if not has_logs_data %}active{% endif %}" role="tab" id="tab-charts" aria-controls="charts-tab" aria-selected="true" tabindex="0" onclick="switchTab('charts')">Mongosync Logs</button>{%- endif %}
-        {%- if has_metrics_data %}
-        <button type="button" class="tab-btn {% if has_metrics_data and not has_logs_data %}active{% endif %}" role="tab" id="tab-metrics" aria-controls="metrics-tab" aria-selected="true" tabindex="0" onclick="switchTab('metrics')">Mongosync Metrics</button>{%- endif %}
-        {%- if has_logs_data %}
+    <div class="tab-buttons" role="tablist" aria-label="Log analysis sections">
+        <button type="button" class="tab-btn {% if has_logs_data %}active{% endif %}" role="tab" id="tab-summary" aria-controls="summary-tab" aria-selected="{{ 'true' if has_logs_data else 'false' }}" tabindex="{{ 0 if has_logs_data else -1 }}" onclick="switchTab('summary')">Summary</button>
+        <button type="button" class="tab-btn {% if not has_logs_data and not has_metrics_data %}active{% endif %}" role="tab" id="tab-charts" aria-controls="charts-tab" aria-selected="{{ 'true' if (not has_logs_data and not has_metrics_data) else 'false' }}" tabindex="{{ 0 if (not has_logs_data and not has_metrics_data) else -1 }}" onclick="switchTab('charts')">Mongosync Logs</button>
+        <button type="button" class="tab-btn {% if has_metrics_data and not has_logs_data %}active{% endif %}" role="tab" id="tab-metrics" aria-controls="metrics-tab" aria-selected="{{ 'true' if (has_metrics_data and not has_logs_data) else 'false' }}" tabindex="{{ 0 if (has_metrics_data and not has_logs_data) else -1 }}" onclick="switchTab('metrics')">Mongosync Metrics</button>
         <button type="button" class="tab-btn" role="tab" id="tab-options" aria-controls="options-tab" aria-selected="false" tabindex="-1" onclick="switchTab('options')">Mongosync Options</button>
         <button type="button" class="tab-btn" role="tab" id="tab-collections" aria-controls="collections-tab" aria-selected="false" tabindex="-1" onclick="switchTab('collections')">Collections and Partitions</button>
         <button type="button" class="tab-btn" role="tab" id="tab-busiest" aria-controls="busiest-tab" aria-selected="false" tabindex="-1" onclick="switchTab('busiest')">CEA Busiest Collections{% if busiest_collections_data %} ({{ busiest_collections_data|length }}){% endif %}</button>
         <button type="button" class="tab-btn" role="tab" id="tab-errors" aria-controls="errors-tab" aria-selected="false" tabindex="-1" onclick="switchTab('errors')">Errors and Warnings{% if errors_data %} ({{ errors_data|length }}){% endif %}</button>
-        <button type="button" class="tab-btn" role="tab" id="tab-logviewer" aria-controls="logviewer-tab" aria-selected="false" tabindex="-1" onclick="switchTab('logviewer')">Log Viewer</button>{%- endif %}
+        <button type="button" class="tab-btn" role="tab" id="tab-logviewer" aria-controls="logviewer-tab" aria-selected="false" tabindex="-1" onclick="switchTab('logviewer')">Log Viewer</button>
     </div>
 
-    {% if has_logs_data %}
-    <div id="summary-tab" class="tab-content active" role="tabpanel" aria-labelledby="tab-summary">
+    <div id="summary-tab" class="tab-content {% if has_logs_data %}active{% endif %}" role="tabpanel" aria-labelledby="tab-summary">
         <div class="plot-container">
+            {% if has_logs_data %}
             <div id="log-summary-root" class="lm-main"></div>
+            {% else %}
+            {{ logs_empty_banner }}
+            {% endif %}
         </div>
     </div>
-    {% endif %}
 
-    {% if has_logs_data or (not has_metrics_data) %}
-    <div id="charts-tab" class="tab-content {% if not has_logs_data %}active{% endif %}" role="tabpanel" aria-labelledby="tab-charts">
+    <div id="charts-tab" class="tab-content {% if not has_logs_data and not has_metrics_data %}active{% endif %}" role="tabpanel" aria-labelledby="tab-charts">
         <div class="plot-container">
+            {% if has_logs_data %}
             <div id="plot"></div>
+            {% else %}
+            {{ logs_empty_banner }}
+            {% endif %}
         </div>
     </div>
-    {% endif %}
 
-    {% if has_metrics_data %}
     <div id="metrics-tab" class="tab-content {% if has_metrics_data and not has_logs_data %}active{% endif %}" role="tabpanel" aria-labelledby="tab-metrics">
         <div class="plot-container">
+            {% if has_metrics_data %}
             <div id="metrics-plot"></div>
+            {% else %}
+            {{ metrics_empty_banner }}
+            {% endif %}
         </div>
     </div>
-    {% endif %}
 
-    {% if has_logs_data %}
     <div id="options-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-options">
         <div class="plot-container">
+            {% if not has_logs_data %}
+            {{ logs_empty_banner }}
+            {% else %}
             <div class="filter-container">
                 <input type="text" id="table-filter" class="filter-input" 
                        placeholder="Filter by key or value..." 
@@ -180,11 +197,15 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 
     <div id="collections-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-collections">
         <div class="plot-container">
+            {% if not has_logs_data %}
+            {{ logs_empty_banner }}
+            {% else %}
             <div class="filter-container">
                 <input type="text" id="partitioninit-filter" class="filter-input" 
                        placeholder="Filter by collection, type, or reason..." 
@@ -266,11 +287,15 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 
     <div id="busiest-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-busiest">
         <div class="plot-container">
+            {% if not has_logs_data %}
+            {{ logs_empty_banner }}
+            {% else %}
             {% if has_busiest_collections_data %}
             <div class="busiest-info-banner" role="note">
                 <strong>About this data:</strong>
@@ -381,11 +406,15 @@
                 </div>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
 
     <div id="errors-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-errors">
         <div class="plot-container">
+            {% if not has_logs_data %}
+            {{ logs_empty_banner }}
+            {% else %}
             <div class="filter-container">
                 <input type="text" id="errors-filter" class="filter-input" 
                        placeholder="Filter errors by name, message, or recommendation..." 
@@ -451,10 +480,16 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 
     <div id="logviewer-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-logviewer">
+        {% if not has_logs_data %}
+        <div class="plot-container">
+            {{ logs_empty_banner }}
+        </div>
+        {% else %}
         <div class="lv-panel">
             <div class="lv-header">
                 <div class="lv-header-row">
@@ -534,8 +569,8 @@
                 <button class="lv-page-btn lv-back-to-tail" id="lvBackToTail" onclick="lvBackToTail()" style="display:none;">Back to Tail View</button>
             </div>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 </div>
 {% endblock %}
@@ -544,6 +579,8 @@
 <script src="/static/js/mi-live-monitor.js"></script>
 <script>
 window.__MI_UPLOAD_PAGE__ = {
+    hasLogsData: {{ has_logs_data | tojson }},
+    hasMetricsData: {{ has_metrics_data | tojson }},
     plot: {% if plot_json %}{{ plot_json | inline_json }}{% else %}null{% endif %},
     metricsPlot: {% if metrics_plot_json %}{{ metrics_plot_json | inline_json }}{% else %}null{% endif %},
     busiestCollectionsPlot: {% if busiest_collections_plot_json %}{{ busiest_collections_plot_json | inline_json }}{% else %}null{% endif %},

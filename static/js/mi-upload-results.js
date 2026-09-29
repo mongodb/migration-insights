@@ -3,6 +3,8 @@
 
 var cfg = global.__MI_UPLOAD_PAGE__ || {};
 
+var hasLogsData = Boolean(cfg.hasLogsData);
+var hasMetricsData = Boolean(cfg.hasMetricsData);
 var optionsData = cfg.optionsData || [];
 var hiddenOptionsData = cfg.hiddenOptionsData || [];
 var startOptionsData = cfg.startOptionsData || [];
@@ -1494,28 +1496,34 @@ function miRenderPlotSafely(elId, plotData, options) {
 }
 
 function miInitUploadResultsCharts() {
-    miRenderPlotSafely('plot', cfg.plot, {
-        onRendered: function(elId) {
-            buildInfoOverlay(elId);
-            buildTableCopyOverlay(elId);
-            bindInfoOverlayEvents(elId);
-        }
-    });
-    miRenderPlotSafely('metrics-plot', cfg.metricsPlot, {
-        onRendered: function(elId) {
-            buildInfoOverlay(elId);
-            bindInfoOverlayEvents(elId);
-        }
-    });
+    if (hasLogsData) {
+        miRenderPlotSafely('plot', cfg.plot, {
+            onRendered: function(elId) {
+                buildInfoOverlay(elId);
+                buildTableCopyOverlay(elId);
+                bindInfoOverlayEvents(elId);
+            }
+        });
+    }
+    if (hasMetricsData) {
+        miRenderPlotSafely('metrics-plot', cfg.metricsPlot, {
+            onRendered: function(elId) {
+                buildInfoOverlay(elId);
+                bindInfoOverlayEvents(elId);
+            }
+        });
+    }
 }
 
 function miInitUploadResultsPage() {
     miInitUploadResultsTabs();
     miInitSortableTableHeaders();
     miInitUploadResultsCharts();
-    lvUpdateControlsState();
+    if (hasLogsData && LV_STORE_ID) {
+        lvUpdateControlsState();
+    }
     var summaryRoot = document.getElementById('log-summary-root');
-    if (summaryRoot && typeof global.miRenderProgressMonitor === 'function') {
+    if (hasLogsData && summaryRoot && typeof global.miRenderProgressMonitor === 'function') {
         var payload = summaryPayload;
         if (!payload || (!payload.display && !payload.error)) {
             payload = {

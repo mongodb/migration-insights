@@ -26,7 +26,7 @@ Migration Insights detects two kinds of content in the uploaded file:
 1. **Structured mongosync JSON log lines** — the main migration log (`mongosync.log` or rotated segments). These drive the **Summary**, **Mongosync Logs**, **Errors and Warnings**, and **Log Viewer** tabs.
 2. **Prometheus metrics lines** — from `mongosync_metrics.log`. These drive the **Mongosync Metrics** tab.
 
-A single upload can contain log lines only, metrics only, or both. Tabs appear based on what was found.
+A single upload can contain log lines only, metrics only, or both. **Mongosync Logs** and **Mongosync Metrics** are always listed; when one side is missing, that tab shows a short message explaining what to include. When the upload is metrics-only, the other log-dependent tabs (Summary, Options, Collections, CEA Busiest Collections, Errors, Log Viewer) are also shown with the same empty-state guidance.
 
 ### Filename recognition
 
@@ -55,18 +55,20 @@ See **[LOG_VERBOSITY.md](LOG_VERBOSITY.md)** for a complete chart-to-verbosity m
 
 ## Analysis results tabs
 
-After parsing, the results page shows one or more tabs:
+After parsing, the results page always shows the full tab strip. Tabs with no matching content show a short empty-state message instead of hiding:
 
-| Tab | When shown | Purpose |
-|-----|------------|---------|
-| **Summary** | Log lines found | Snapshot of the latest migration state, using the same cards as Migration Monitoring |
-| **Mongosync Logs** | Log lines found | Time-series charts: phases, lag, copy progress, CEA, indexes, verifier, etc. |
-| **Mongosync Metrics** | Prometheus metrics found | Charts from `mongosync_metrics.json` (OTel/Prometheus exposition in log lines) |
-| **Mongosync Options** | Log lines found | Version info, startup options, hidden flags, `/api/v1/start` request body |
-| **Collections and Partitions** | Log lines found | Natural-order collections and per-collection partition tables |
-| **CEA Busiest Collections** | CEA CRUD statistics found in log | Per-namespace CEA write rankings, time-series chart, and workload warnings |
-| **Errors and Warnings** | Log lines found | Pattern-matched errors with optional recommendations |
-| **Log Viewer** | Log lines found | Tail view and full-text search over indexed log lines |
+| Tab | When it has content | Empty state |
+|-----|---------------------|-------------|
+| **Summary** | Mongosync log lines found | Shown when metrics-only; asks to include mongosync log files and re-upload logs + metrics together |
+| **Mongosync Logs** | Mongosync log lines found | Always listed; empty banner when the upload has no log lines |
+| **Mongosync Metrics** | Prometheus metrics found | Always listed; empty banner when the upload has no metrics (include `mongosync_metrics.log`) |
+| **Mongosync Options** | Mongosync log lines found | Shown when metrics-only with the same logs empty banner |
+| **Collections and Partitions** | Mongosync log lines found | Shown when metrics-only with the same logs empty banner |
+| **CEA Busiest Collections** | CEA CRUD statistics found in log | Shown when metrics-only with the same logs empty banner; otherwise explains missing CEA stats when logs are present but CEA data is not |
+| **Errors and Warnings** | Mongosync log lines found | Shown when metrics-only with the same logs empty banner |
+| **Log Viewer** | Mongosync log lines found | Shown when metrics-only with the same logs empty banner |
+
+Default active tab: **Summary** when log lines are present; **Mongosync Metrics** when the upload is metrics-only.
 
 ### Summary
 
