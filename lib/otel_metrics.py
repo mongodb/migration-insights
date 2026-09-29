@@ -362,6 +362,28 @@ def generate_title(metric: Dict[str, Any]) -> str:
     return base_title
 
 
+# Section labels sit this far above a section's subplot titles. A fixed paper
+# fraction is taller than a plot row once the grid grows, which paints the
+# label on the previous section's charts.
+_SECTION_LABEL_CLEARANCE_PX = 36
+_SECTION_LABEL_HEIGHT_PX = 22
+_PLOT_ROW_HEIGHT_PX = 225
+_SECTION_TOP_MARGIN_PX = 96
+
+
+def _section_label_y(domain_top: float, prev_domain_bottom: Optional[float], figure_height: int) -> float:
+    """Paper y of a section label, in the gap above its first row of plots."""
+    clearance = _SECTION_LABEL_CLEARANCE_PX / figure_height
+    y = domain_top + clearance
+    if prev_domain_bottom is None:
+        return y
+    label_height = _SECTION_LABEL_HEIGHT_PX / figure_height
+    ceiling = prev_domain_bottom - (4 / figure_height)
+    if y + label_height > ceiling:
+        y = ceiling - label_height
+    return max(y, domain_top)
+
+
 def add_no_data(fig, row: int, col: int, name: str):
     """Add a NO DATA placeholder to a subplot."""
     fig.add_trace(
@@ -379,7 +401,7 @@ def add_gauge_trace(fig, collector: MetricsCollector, row: int, col: int,
     times, values = collector.get_gauge_series(metric_name)
     if times:
         fig.add_trace(
-            go.Scattergl(x=times, y=values, mode='lines', name='Value',
+            go.Scatter(x=times, y=values, mode='lines', name='Value',
                         legendgroup=legend_group),
             row=row, col=col
         )
@@ -393,7 +415,7 @@ def add_counter_rate_trace(fig, collector: MetricsCollector, row: int, col: int,
     times, values = collector.get_counter_rate(metric_name)
     if times:
         fig.add_trace(
-            go.Scattergl(x=times, y=values, mode='lines', name='Rate',
+            go.Scatter(x=times, y=values, mode='lines', name='Rate',
                         legendgroup=legend_group),
             row=row, col=col
         )
@@ -410,7 +432,7 @@ def add_histogram_percentiles_trace(fig, collector: MetricsCollector, row: int, 
         for pct, (times, values) in pcts.items():
             if times:
                 fig.add_trace(
-                    go.Scattergl(x=times, y=values, mode='lines', name=f'p{int(pct)}',
+                    go.Scatter(x=times, y=values, mode='lines', name=f'p{int(pct)}',
                                 legendgroup=legend_group),
                     row=row, col=col
                 )
@@ -525,15 +547,26 @@ def create_metrics_plots(collector: MetricsCollector, config_path: Path = None) 
     # Force all y-axes to start at 0
     fig.update_yaxes(rangemode='tozero')
     
-    # Add section label annotations above each section group
+    # Add section label annotations in the gap above each section.
+    # Height is applied with the theme below; use the same value here so the
+    # pixel clearance converts to paper coordinates before layout.height exists.
+    figure_height = rows * _PLOT_ROW_HEIGHT_PX
     for i, (section_name, start_row) in enumerate(section_boundaries):
         axis_idx = (start_row - 1) * 2 + 1
         yaxis_key = 'yaxis' if axis_idx == 1 else f'yaxis{axis_idx}'
         domain = fig.layout[yaxis_key].domain
         if domain:
-            y_pos = domain[1] + 0.012
+            prev_bottom = None
+            if start_row > 1:
+                prev_idx = (start_row - 2) * 2 + 1
+                prev_key = 'yaxis' if prev_idx == 1 else f'yaxis{prev_idx}'
+                prev_domain = fig.layout[prev_key].domain
+                if prev_domain:
+                    prev_bottom = prev_domain[0]
+            y_pos = _section_label_y(domain[1], prev_bottom, figure_height)
             fig.add_annotation(
                 x=0.5, y=y_pos, xref='paper', yref='paper',
+                xanchor='center', yanchor='bottom',
                 text=f'<b>{section_name}</b>',
                 **section_label_style(),
             )
@@ -562,10 +595,19 @@ def create_metrics_plots(collector: MetricsCollector, config_path: Path = None) 
     apply_mi_theme(
         fig,
         title="Mongosync Metrics",
-        height=rows * 225,
+        height=figure_height,
         width=1450,
         legend_tracegroupgap=170,
     )
+    # Room above the first row for the figure title, the first section label,
+    # and that row's subplot titles.
+    margin = fig.layout.margin
+    fig.update_layout(margin=dict(
+        l=margin.l if margin.l is not None else 48,
+        r=margin.r if margin.r is not None else 24,
+        t=_SECTION_TOP_MARGIN_PX,
+        b=margin.b if margin.b is not None else 40,
+    ))
     
     # Convert to JSON
     return json.dumps(fig, cls=PlotlyJSONEncoder)

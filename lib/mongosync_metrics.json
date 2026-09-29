@@ -601,5 +601,131 @@
       "unit": "count",
       "title": "Stream Hasher Buffer Size",
       "description": "Current size of the stream hasher buffer."
+    },
+    {
+      "name": "mongosync_dst_write_command_latency",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "histogram",
+      "unit": "milliseconds",
+      "title": "Destination Write Command Latency",
+      "description": "Distribution of destination write-command latencies. The immediate destination-overload signal."
+    },
+    {
+      "name": "mongosync_dst_global_lock_queue_writers",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "count",
+      "title": "Destination Global Lock Queue Writers",
+      "description": "Number of write operations queued waiting on the destination global lock."
+    },
+    {
+      "name": "mongosync_dst_write_tickets_out",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "count",
+      "title": "Destination Write Tickets Out",
+      "description": "Write tickets currently checked out on the destination. Approaching the total means the storage engine is saturating."
+    },
+    {
+      "name": "mongosync_dst_write_tickets_total",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "count",
+      "title": "Destination Write Tickets Total",
+      "description": "Total write tickets available on the destination storage engine."
+    },
+    {
+      "name": "mongosync_dst_write_queue_length",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "count",
+      "title": "Destination Write Queue Length",
+      "description": "Number of write operations waiting in the destination write queue."
+    },
+    {
+      "name": "mongosync_dst_write_time_queued_micros_total",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "counter",
+      "unit": "microseconds",
+      "title": "Destination Write Time Queued Rate",
+      "description": "Cumulative microseconds write operations spent queued on the destination, plotted as a per-second rate."
+    },
+    {
+      "name": "mongosync_src_cpu_usage",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "ratio",
+      "title": "Source CPU Usage",
+      "description": "Fraction of CPU in use on the source cluster (0.0-1.0), from the most recent server-status poll."
+    },
+    {
+      "name": "mongosync_dst_cpu_usage",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "ratio",
+      "title": "Destination CPU Usage",
+      "description": "Fraction of CPU in use on the destination cluster (0.0-1.0), from the most recent server-status poll."
+    },
+    {
+      "name": "mongosync_src_ram_usage",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "ratio",
+      "title": "Source RAM Usage",
+      "description": "Fraction of RAM in use on the source cluster (0.0-1.0), from the most recent server-status poll."
+    },
+    {
+      "name": "mongosync_dst_ram_usage",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "ratio",
+      "title": "Destination RAM Usage",
+      "description": "Fraction of RAM in use on the destination cluster (0.0-1.0), from the most recent server-status poll."
+    },
+    {
+      "name": "mongosync_src_replication_lag_seconds",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "seconds",
+      "title": "Source Replication Lag",
+      "description": "Replication lag in seconds between the source primary and its slowest reachable secondary."
+    },
+    {
+      "name": "mongosync_dst_replication_lag_seconds",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "seconds",
+      "title": "Destination Replication Lag",
+      "description": "Replication lag in seconds between the destination primary and its slowest reachable secondary."
+    },
+    {
+      "name": "mongosync_src_unhealthy_data_bearing_members",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "count",
+      "title": "Source Unhealthy Data-Bearing Members",
+      "description": "Data-bearing source members that are neither PRIMARY nor SECONDARY."
+    },
+    {
+      "name": "mongosync_dst_unhealthy_data_bearing_members",
+      "section": "Cluster Health",
+      "component": "mongosync",
+      "type": "gauge",
+      "unit": "count",
+      "title": "Destination Unhealthy Data-Bearing Members",
+      "description": "Data-bearing destination members that are neither PRIMARY nor SECONDARY."
     }
   ]

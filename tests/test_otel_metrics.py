@@ -7,6 +7,7 @@ import pytest
 from lib.otel_metrics import (
     CONFIG_PATH,
     MetricsCollector,
+    create_metrics_plots,
     generate_title,
     load_metrics_config,
     parse_labels,
@@ -144,3 +145,39 @@ class TestMetricsConfig:
     def test_generate_title_no_unit_suffix(self):
         title = generate_title({"name": "mongosync_count", "unit": "count"})
         assert title == "Count"
+
+    def test_section_labels_sit_in_the_gap_and_series_use_svg(self):
+        collector = MetricsCollector()
+        collector.process_line(json.dumps({
+            "time": "2026-01-15T10:30:45.000000Z",
+            "message": "mongosync_phase 2",
+        }))
+        figure = json.loads(create_metrics_plots(collector))
+        layout = figure["layout"]
+
+        series = [trace for trace in figure["data"] if trace.get("mode") == "lines"]
+        assert series
+        assert {trace["type"] for trace in series} == {"scatter"}
+
+        labels = [
+            annotation for annotation in layout["annotations"]
+            if str(annotation.get("text", "")).startswith("<b>")
+        ]
+        health = next(annotation for annotation in labels if annotation["text"] == "<b>Cluster Health</b>")
+        verifier = next(annotation for annotation in labels if annotation["text"] == "<b>Verifier</b>")
+        assert health["y"] < verifier["y"]
+        assert health["yanchor"] == "bottom"
+
+        axes = []
+        index = 1
+        while True:
+            key = "yaxis" if index == 1 else f"yaxis{index}"
+            if key not in layout:
+                break
+            if index % 2 == 1:
+                axes.append(layout[key]["domain"])
+            index += 1
+        below = [domain for domain in axes if domain[1] < health["y"]]
+        above = [domain for domain in axes if domain[0] > health["y"]]
+        assert below and above
+        assert max(domain[1] for domain in below) < health["y"] < min(domain[0] for domain in above)
