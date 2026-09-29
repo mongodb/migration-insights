@@ -341,7 +341,7 @@
                                 <th class="sortable-th" data-label="Namespace" onclick="sortTableByColumn('busiest-collections-table', 0, 'text')" title="Click to sort">Namespace</th>
                                 <th class="sortable-th" data-label="Total Write Ops" onclick="sortTableByColumn('busiest-collections-table', 1, 'numeric')" title="Click to sort">Total Write Ops</th>
                                 {% for event_type in busiest_collections_event_types %}
-                                <th class="sortable-th" data-label="{{ event_type }}" onclick="sortTableByColumn('busiest-collections-table', {{ loop.index + 2 }}, 'numeric')" title="Click to sort">{{ event_type }}</th>
+                                <th class="sortable-th" data-label="{{ event_type }}" onclick="sortTableByColumn('busiest-collections-table', {{ loop.index0 + 2 }}, 'numeric')" title="Click to sort">{{ event_type }}</th>
                                 {% endfor %}
                                 <th class="sortable-th" data-label="Warnings" onclick="sortTableByColumn('busiest-collections-table', {{ busiest_collections_event_types|length + 2 }}, 'numeric')" title="Click to sort">Warnings</th>
                                 <th class="sortable-th" data-label="Max Spread Disparity" onclick="sortTableByColumn('busiest-collections-table', {{ busiest_collections_event_types|length + 3 }}, 'numeric')" title="Click to sort">Max Spread Disparity</th>

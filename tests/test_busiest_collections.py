@@ -1,5 +1,6 @@
 """Tests for CEA busiest collections parsing."""
 import json
+import re
 
 import pytest
 
@@ -156,3 +157,46 @@ class TestBuildBusiestCollectionsPlot:
 
     def test_build_plot_empty_returns_blank(self):
         assert build_busiest_collections_plot({"times": [], "series": {}}) == ""
+
+
+class TestBusiestCollectionsSortIndices:
+    def test_event_type_headers_use_zero_based_column_indices(
+        self, app_client, minimal_template_data
+    ):
+        """Event-type sort indices must start at 2 (after Namespace and Total Write Ops)."""
+        event_types = ["insert", "update"]
+        context = {
+            **minimal_template_data,
+            "has_logs_data": True,
+            "has_busiest_collections_data": True,
+            "busiest_collections_event_types": event_types,
+            "busiest_collections_meta": {"intervalSecs": 10, "topNPerInterval": 5},
+            "busiest_collections_data": [
+                {
+                    "namespace": "db.coll",
+                    "totalEvents": 100,
+                    "totalEventsPerType": {"insert": 60, "update": 40},
+                    "warningCount": 0,
+                    "maxSpreadDisparity": None,
+                }
+            ],
+        }
+        with app_client.application.test_request_context("/logs/"):
+            html = app_client.application.jinja_env.get_template(
+                "upload_results.html"
+            ).render(**context)
+
+        def sort_index(label):
+            match = re.search(
+                rf"data-label=\"{re.escape(label)}\" onclick=\"sortTableByColumn\('busiest-collections-table', (\d+),",
+                html,
+            )
+            assert match, f"missing sortable header for {label}"
+            return int(match.group(1))
+
+        assert sort_index("Namespace") == 0
+        assert sort_index("Total Write Ops") == 1
+        assert sort_index("insert") == 2
+        assert sort_index("update") == 3
+        assert sort_index("Warnings") == 4
+        assert sort_index("Max Spread Disparity") == 5
