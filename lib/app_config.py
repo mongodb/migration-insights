@@ -74,7 +74,7 @@ PORT = parse_env_int('MI_PORT', 3030, min_value=1, max_value=65535)
 
 # Application constants
 APP_NAME = "Migration Insights"
-APP_VERSION = "0.9.2.14"
+APP_VERSION = "0.9.3.7"
 
 DEVELOPER_CREDITS = {
     "copyright": "\u00a9 MongoDB Inc.",
