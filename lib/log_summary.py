@@ -376,6 +376,18 @@ class SummaryMigrationState:
         stamp = _log_time_sort_key(time)
         if not stamp:
             return
+        # Always track peak events (even from older out-of-order progress)
+        # so commit backfill can use the historical max.
+        self.note_events_applied(
+            progress.get("totalEventsApplied"), time, update_last_positive=False
+        )
+        atlas_events = _events_applied_from_atlas_progress(progress)
+        if atlas_events is not None:
+            self.note_events_applied(atlas_events, time, update_last_positive=False)
+
+        if self.progress_time is not None and stamp < self.progress_time:
+            return
+
         self.progress_snapshot = dict(progress)
         self.progress_time = stamp
         self.note_phase(progress.get("info"), time)
@@ -387,7 +399,6 @@ class SummaryMigrationState:
         if verification:
             self.note_verification(verification, time)
         self.note_events_applied(progress.get("totalEventsApplied"), time)
-        atlas_events = _events_applied_from_atlas_progress(progress)
         if atlas_events is not None:
             self.note_events_applied(atlas_events, time)
 
@@ -436,13 +447,13 @@ class SummaryMigrationState:
             self.verification = verification
             self.verification_time = stamp
 
-    def note_events_applied(self, value, time):
+    def note_events_applied(self, value, time, *, update_last_positive=True):
         coerced = _coerce_event_count(value)
         if coerced is None:
             return
         if self.total_events_applied_peak is None or coerced > self.total_events_applied_peak:
             self.total_events_applied_peak = coerced
-        if coerced > 0:
+        if update_last_positive and coerced > 0:
             self.total_events_applied_last_positive = coerced
 
     def to_progress(
@@ -1044,6 +1055,10 @@ def build_log_summary_payload(
             state_transitions=state_transitions,
             index_creation_lines=index_creation_lines,
         )
+    # Prefer chronologically latest /progress (e.g. post-sort extract_latest_progress)
+    # over an in-scan summary_state that may follow zip namelist order.
+    if progress and progress_time:
+        summary_state.note_progress(progress, progress_time)
     merged_progress = summary_state.to_progress(
         replication_lines=replication_lines,
         state_transitions=state_transitions,

@@ -152,6 +152,85 @@ class TestSummaryMigrationState:
         progress = state.to_progress()
         assert progress["info"] == "change event application"
 
+    def test_note_progress_keeps_newer_when_older_arrives_later(self):
+        state = SummaryMigrationState()
+        state.note_progress(
+            {
+                "state": "RUNNING",
+                "info": "change event application",
+                "lagTimeSeconds": 698648,
+                "totalEventsApplied": 252_000_000,
+            },
+            "2026-09-16T12:00:00.000Z",
+        )
+        state.note_progress(
+            {
+                "state": "RUNNING",
+                "info": "change event application",
+                "lagTimeSeconds": 545997,
+                "totalEventsApplied": 598_000_000,
+            },
+            "2026-09-13T12:00:00.000Z",
+        )
+        progress = state.to_progress()
+        assert progress["lagTimeSeconds"] == 698648
+        assert progress["totalEventsApplied"] == 252_000_000
+        assert state.total_events_applied_last_positive == 252_000_000
+        # Older higher count still contributes to peak for commit backfill.
+        assert state.total_events_applied_peak == 598_000_000
+
+    def test_note_progress_accepts_newer_after_older(self):
+        state = SummaryMigrationState()
+        state.note_progress(
+            {
+                "state": "RUNNING",
+                "lagTimeSeconds": 545997,
+                "totalEventsApplied": 100,
+            },
+            "2026-09-13T12:00:00.000Z",
+        )
+        state.note_progress(
+            {
+                "state": "RUNNING",
+                "lagTimeSeconds": 698648,
+                "totalEventsApplied": 200,
+            },
+            "2026-09-16T12:00:00.000Z",
+        )
+        progress = state.to_progress()
+        assert progress["lagTimeSeconds"] == 698648
+        assert progress["totalEventsApplied"] == 200
+        assert state.total_events_applied_last_positive == 200
+        assert state.total_events_applied_peak == 200
+
+    def test_build_log_summary_payload_applies_newer_progress_over_stale_state(self):
+        stale = SummaryMigrationState()
+        stale.note_progress(
+            {
+                "state": "RUNNING",
+                "info": "change event application",
+                "lagTimeSeconds": 545997,
+                "totalEventsApplied": 598_000_000,
+            },
+            "2026-09-13T12:00:00.000Z",
+        )
+        payload = build_log_summary_payload(
+            progress={
+                "state": "RUNNING",
+                "info": "change event application",
+                "lagTimeSeconds": 698648,
+                "totalEventsApplied": 252_000_000,
+            },
+            progress_time="2026-09-16T12:00:00.000Z",
+            summary_state=stale,
+        )
+        metrics = {m["label"]: m["value"] for m in payload["display"]["sync"]["metrics"]}
+        assert metrics["Lag time"] == "8d 2h"
+        assert "252" in metrics["Events applied"]
+        assert stale.progress_snapshot["lagTimeSeconds"] == 698648
+        assert stale.total_events_applied_last_positive == 252_000_000
+        assert stale.total_events_applied_peak == 598_000_000
+
     def test_build_summary_migration_state_replays_log_events(self):
         state = build_summary_migration_state(
             sent_responses=[
