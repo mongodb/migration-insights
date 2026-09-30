@@ -825,23 +825,28 @@ def upload_file():
         if not mongosync_opts_list:
             logger.info("mongosync_opts_list is empty")
 
-        #Getting the Timezone
-        try:  
-            dt = parser.isoparse(data[0]['time'])  
-            tz_name = dt.strftime('%Z')  
-            tz_offset = dt.strftime('%z')  
-            if tz_name:  
-                timeZoneInfo = tz_name  
-            elif tz_offset:  
-                # Format offset as +HH:MM  
-                tz_sign = tz_offset[0]  
-                tz_hour = tz_offset[1:3]  
-                tz_min = tz_offset[3:5]  
-                timeZoneInfo = f"{tz_sign}{tz_hour}:{tz_min}"  
-            else:  
+        # Getting the Timezone (prefer replication progress; fall back to version info)
+        timeZoneInfo = ""
+        tz_source = None
+        if data and isinstance(data[0], dict) and data[0].get('time'):
+            tz_source = data[0]['time']
+        elif version_info_list and isinstance(version_info_list[0], dict) and version_info_list[0].get('time'):
+            tz_source = version_info_list[0]['time']
+        if tz_source:
+            try:
+                dt = parser.isoparse(tz_source)
+                tz_name = dt.strftime('%Z')
+                tz_offset = dt.strftime('%z')
+                if tz_name:
+                    timeZoneInfo = tz_name
+                elif tz_offset:
+                    # Format offset as +HH:MM
+                    tz_sign = tz_offset[0]
+                    tz_hour = tz_offset[1:3]
+                    tz_min = tz_offset[3:5]
+                    timeZoneInfo = f"{tz_sign}{tz_hour}:{tz_min}"
+            except Exception:
                 timeZoneInfo = ""  
-        except Exception:  
-            timeZoneInfo = ""  
                 
 
         # Extract the data you want to plot
@@ -1736,8 +1741,9 @@ def upload_file():
                 seen_nat.add(key)
                 natural_order_data.append(item)
 
-        # Determine which tabs have data
-        has_logs_data = logs_line_count > 0 and len(data) > 0
+        # Any classified mongosync JSON lines count as log data (not only Replication progress)
+        has_logs_data = logs_line_count > 0
+        has_replication_progress = len(data) > 0
         has_metrics_data = metrics_collector.metrics_count > 0
 
         busiest_collections_result = busiest_collections_accumulator.finalize()
@@ -1789,6 +1795,7 @@ def upload_file():
             'progress_data': progress_data,
             'summary_payload': summary_payload,
             'has_logs_data': has_logs_data,
+            'has_replication_progress': has_replication_progress,
             'has_metrics_data': has_metrics_data,
             'log_viewer_lines': log_viewer_lines_out,
             'log_viewer_max_lines': LOG_VIEWER_MAX_LINES,

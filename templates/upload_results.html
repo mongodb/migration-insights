@@ -37,6 +37,12 @@
     Include mongosync log files (filename must contain <code>mongosync</code> or <code>liveimport</code>) and re-upload logs and metrics together.
 </div>
 {% endset %}
+{% set no_replication_progress_banner %}
+<div class="options-info-banner" role="note">
+    <strong>No Replication progress lines in this upload.</strong>
+    Progress charts may show empty panels. Options, Summary, and Log Viewer still use other mongosync log messages when present.
+</div>
+{% endset %}
 <div class="ur-main">
 <div class="tabs-container">
     <div class="tab-buttons" role="tablist" aria-label="Log analysis sections">
@@ -63,6 +69,9 @@
     <div id="charts-tab" class="tab-content {% if not has_logs_data and not has_metrics_data %}active{% endif %}" role="tabpanel" aria-labelledby="tab-charts">
         <div class="plot-container">
             {% if has_logs_data %}
+            {% if not has_replication_progress %}
+            {{ no_replication_progress_banner }}
+            {% endif %}
             <div id="plot"></div>
             {% else %}
             {{ logs_empty_banner }}
@@ -580,6 +589,7 @@
 <script>
 window.__MI_UPLOAD_PAGE__ = {
     hasLogsData: {{ has_logs_data | tojson }},
+    hasReplicationProgress: {{ has_replication_progress | default(false) | tojson }},
     hasMetricsData: {{ has_metrics_data | tojson }},
     plot: {% if plot_json %}{{ plot_json | inline_json }}{% else %}null{% endif %},
     metricsPlot: {% if metrics_plot_json %}{{ metrics_plot_json | inline_json }}{% else %}null{% endif %},

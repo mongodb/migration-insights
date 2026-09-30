@@ -48,6 +48,26 @@ def _isolated_registry(monkeypatch, tmp_path):
 
 class TestUploadFixtures:
     @patch("lib.logs_metrics.create_metrics_plots", return_value="")
+    def test_upload_startup_only_log_without_replication_progress(self, _mock_plots, app_client):
+        """Startup-only logs are recognized even without Replication progress lines."""
+        log_path = FIXTURES / "sample_mongosync_startup_only.log"
+        with open(log_path, "rb") as f:
+            data = {"file": (f, "mongosync.log")}
+            r = app_client.post(
+                "/logs/uploadLogs", data=data, content_type="multipart/form-data"
+            )
+        assert r.status_code == 200
+        assert b"hasLogsData: true" in r.data
+        assert b"hasReplicationProgress: false" in r.data
+        assert b"No mongosync log lines in this upload." not in r.data
+        assert b"No Replication progress lines in this upload." in r.data
+        assert b'id="summary-tab" class="tab-content active"' in r.data
+        assert b'id="plot"' in r.data
+        assert b"Mongosync Options" in r.data
+        assert b"disableMetricsLogging" in r.data
+        assert b"disableWriteBlocking" in r.data
+
+    @patch("lib.logs_metrics.create_metrics_plots", return_value="")
     def test_upload_sample_log_fixture(self, _mock_plots, app_client):
         log_path = FIXTURES / "sample_mongosync.log"
         with open(log_path, "rb") as f:

@@ -26,7 +26,7 @@ Migration Insights detects two kinds of content in the uploaded file:
 1. **Structured mongosync JSON log lines** — the main migration log (`mongosync.log` or rotated segments). These drive the **Summary**, **Mongosync Logs**, **Errors and Warnings**, and **Log Viewer** tabs.
 2. **Prometheus metrics lines** — from `mongosync_metrics.log`. These drive the **Mongosync Metrics** tab.
 
-A single upload can contain log lines only, metrics only, or both. **Mongosync Logs** and **Mongosync Metrics** are always listed; when one side is missing, that tab shows a short message explaining what to include. When the upload is metrics-only, the other log-dependent tabs (Summary, Options, Collections, CEA Busiest Collections, Errors, Log Viewer) are also shown with the same empty-state guidance.
+A single upload can contain log lines only, metrics only, or both. **Mongosync Logs** and **Mongosync Metrics** are always listed; when one side is missing, that tab shows a short message explaining what to include. When the upload is metrics-only, the other log-dependent tabs (Summary, Options, Collections, CEA Busiest Collections, Errors, Log Viewer) are also shown with the same empty-state guidance. Log-dependent tabs appear whenever classified mongosync JSON log lines are present (not only when `"Replication progress"` is logged); progress charts need those progress (and related) messages and show a short note when they are absent.
 
 ### Filename recognition
 
@@ -60,7 +60,7 @@ After parsing, the results page always shows the full tab strip. Tabs with no ma
 | Tab | When it has content | Empty state |
 |-----|---------------------|-------------|
 | **Summary** | Mongosync log lines found | Shown when metrics-only; asks to include mongosync log files and re-upload logs + metrics together |
-| **Mongosync Logs** | Mongosync log lines found | Always listed; empty banner when the upload has no log lines |
+| **Mongosync Logs** | Mongosync log lines found | Always listed; empty banner when the upload has no log lines; info note when log lines exist but no Replication progress |
 | **Mongosync Metrics** | Prometheus metrics found | Always listed; empty banner when the upload has no metrics (include `mongosync_metrics.log`) |
 | **Mongosync Options** | Mongosync log lines found | Shown when metrics-only with the same logs empty banner |
 | **Collections and Partitions** | Mongosync log lines found | Shown when metrics-only with the same logs empty banner |

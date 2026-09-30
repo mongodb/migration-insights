@@ -73,6 +73,7 @@ def minimal_template_data():
         "progress_data": [],
         "summary_payload": {},
         "has_logs_data": False,
+        "has_replication_progress": False,
         "has_metrics_data": False,
         "log_viewer_lines": [],
         "log_viewer_max_lines": 1000,
