@@ -37,10 +37,12 @@ The table below lists every chart and panel in Migration Insights, the minimum v
 |----------------|---------------|--------------------|
 | Mongosync Phases (scatter) | `info` (default) | `"Starting ... phase"` \| `"Commit handler called"`; with `debug` (`--verbosity 1`): also `"Updating the in-memory phase from ... to ..."`; Live Migrate: `sent response` → `progress.atlasLiveMigrateMetrics.PhaseTransitions` — all sources merged, earliest timestamp per phase name wins |
 | Mongosync Progress (table) | `info` (default) | Same merged phase sources as scatter (phase rows only), plus `"sent response"` → `body.progress.canCommit` / `canWrite` state transitions. In the Log Analyzer UI, use the chart **Copy as Markdown** badge to export the table. |
-| Lag Time (seconds) | `info` (default) | `"Replication progress"` → `lag.overallLagSeconds` when present, else `lagTimeSeconds` (deprecated); optional `lag.crudLagSeconds` / `lag.ddlLagSeconds` for CRUD/DDL breakdown series |
+| Lag Time (seconds) | `info` (default) | `"Replication progress"` → `lag.overallLagSeconds` when present, else `lagTimeSeconds` (deprecated); optional `lag.crudLagSeconds` / `lag.ddlLagSeconds` for CRUD/DDL breakdown series. When mongosync **1.22+** `ceaStage` samples are present, drain intervals (`collection copy drain`) are shaded on this chart. |
 | Est. Source Oplog Time Remaining | `info` (default) | `"Replication progress"` → `estimatedOplogTimeRemaining` |
 | Ping Latency — src & dst | `info` (default) | `"Operation duration stats"` → `sourcePingLatencyMs` / `destinationPingLatencyMs` |
 | Average Source CRUD Event Rate | `info` (default) | `"Average Source CRUD events rate"` (mongosync before REP-6864, Jun 2025) or `"Estimated average rate of CRUD events on the source."` (Dec 2025+) → `srcCRUDEventsPerSec`. Logged every 30s once CRUD change streams have event activity. |
+| Est. seconds to CEA catchup | `info` (default) | `"sent response"` → `body.progress.estimatedSecondsToCEACatchup` |
+| CEA stage | `info` (default); mongosync **1.22+** | `"Replication progress"` → `ceaStage` (skip `"n/a"`) and/or `"sent response"` → `body.progress.ceaStage` (`collection copy drain` \| `steady state`). Replication wins on duplicate timestamps. |
 
 > **Note:** This line may not appear in all orchestrator modes (e.g. some Live Import runs) or before CEA has processed CRUD events. Do not confuse with `eventApplicationRatePerSecond` on `"Replication progress."` — that is destination apply rate over the last 30s window, not average source CRUD rate since stream start.
 

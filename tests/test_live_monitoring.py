@@ -477,6 +477,36 @@ class TestBuildHelpers:
         assert by_label["Catch-up estimate"]["value"] == "1m 30s"
         assert by_label["Catch-up estimate"]["title"] == "90 seconds"
         assert "title" not in by_label["Events applied"]
+        assert "CEA stage" not in by_label
+
+    def test_build_progress_metrics_summary_includes_cea_stage(self):
+        lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
+        metrics = _build_progress_metrics(
+            {
+                "ceaStage": "collection copy drain",
+                "canCommit": False,
+                "canWrite": False,
+            },
+            lag,
+            summary=True,
+        )
+        by_label = {m["label"]: m for m in metrics}
+        assert by_label["CEA stage"]["value"] == "collection copy drain"
+        assert by_label["CEA stage"]["small"] is True
+
+    def test_build_progress_metrics_live_omits_cea_stage(self):
+        lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
+        metrics = _build_progress_metrics(
+            {"ceaStage": "steady state"},
+            lag,
+            summary=False,
+        )
+        assert "CEA stage" not in {m["label"] for m in metrics}
+
+    def test_build_progress_metrics_summary_omits_missing_cea_stage(self):
+        lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
+        metrics = _build_progress_metrics({}, lag, summary=True)
+        assert "CEA stage" not in {m["label"] for m in metrics}
 
     def test_db_only_metrics_lag_title(self):
         lag = {"overall": 90, "crud": None, "ddl": None, "has_breakdown": False}

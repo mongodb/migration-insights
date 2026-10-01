@@ -13,7 +13,9 @@ from lib.logs_metrics import (
     _phase_event_from_in_memory,
     _phase_event_from_info,
     _phase_events_from_api,
+    cea_stage_drain_intervals,
     detect_mime_type,
+    extract_cea_stage_series,
 )
 from lib.utils import resolve_replication_lag
 
@@ -254,3 +256,87 @@ class TestClassifyPartitionInitType:
     )
     def test_classify_partition_init_type(self, reason, expected):
         assert _classify_partition_init_type(reason) == expected
+
+
+class TestExtractCeaStageSeries:
+    def test_merges_replication_and_sent_response_preferring_replication(self):
+        replication = [
+            {
+                "time": "2026-09-16T10:00:00.000000Z",
+                "ceaStage": "collection copy drain",
+            },
+            {
+                "time": "2026-09-16T10:01:00.000000Z",
+                "ceaStage": "n/a",
+            },
+            {
+                "time": "2026-09-16T10:02:00.000000Z",
+                "ceaStage": "steady state",
+            },
+        ]
+        sent = [
+            {
+                "time": "2026-09-16T10:00:00.000000Z",
+                "body": json.dumps(
+                    {"progress": {"ceaStage": "steady state"}}
+                ),
+            },
+            {
+                "time": "2026-09-16T10:03:00.000000Z",
+                "body": json.dumps(
+                    {"progress": {"ceaStage": "steady state"}}
+                ),
+            },
+        ]
+        times, stages = extract_cea_stage_series(replication, sent)
+        assert [t.isoformat() for t in times] == [
+            "2026-09-16T10:00:00",
+            "2026-09-16T10:02:00",
+            "2026-09-16T10:03:00",
+        ]
+        assert stages == [
+            "collection copy drain",
+            "steady state",
+            "steady state",
+        ]
+
+    def test_pre_1_22_logs_yield_empty_series(self):
+        replication = [
+            {"time": "2026-01-01T10:00:00.000000Z", "lagTimeSeconds": 12},
+        ]
+        sent = [
+            {
+                "time": "2026-01-01T10:00:00.000000Z",
+                "body": json.dumps({"progress": {"state": "RUNNING"}}),
+            }
+        ]
+        assert extract_cea_stage_series(replication, sent) == ([], [])
+
+
+class TestCeaStageDrainIntervals:
+    def test_builds_intervals_until_next_stage(self):
+        from datetime import datetime
+
+        times = [
+            datetime(2026, 9, 16, 10, 0, 0),
+            datetime(2026, 9, 16, 10, 1, 0),
+            datetime(2026, 9, 16, 10, 2, 0),
+            datetime(2026, 9, 16, 10, 3, 0),
+        ]
+        stages = [
+            "collection copy drain",
+            "collection copy drain",
+            "steady state",
+            "steady state",
+        ]
+        intervals = cea_stage_drain_intervals(times, stages)
+        assert intervals == [
+            (datetime(2026, 9, 16, 10, 0, 0), datetime(2026, 9, 16, 10, 2, 0)),
+        ]
+
+    def test_skips_zero_width_terminal_point(self):
+        from datetime import datetime
+
+        times = [datetime(2026, 9, 16, 10, 0, 0)]
+        stages = ["collection copy drain"]
+        assert cea_stage_drain_intervals(times, stages) == []

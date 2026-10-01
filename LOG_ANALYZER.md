@@ -74,8 +74,10 @@ Default active tab: **Summary** when log lines are present; **Mongosync Metrics*
 
 The Summary tab reuses the Migration Monitoring layout (state badge, copy progress, lag, index building, direction mapping, embedded verifier, filters) but is **not live**. Values come from:
 
-1. The **latest `/api/v1/progress` body** recorded in `sent response` log lines (primary source for state, copy bytes, lag, canCommit/canWrite, index building, verifier, direction).
+1. The **latest `/api/v1/progress` body** recorded in `sent response` log lines (primary source for state, copy bytes, lag, canCommit/canWrite, index building, verifier, direction, and — for mongosync **1.22+** — `ceaStage`).
 2. **Other log events** already used for charts and tables: phase transitions, `/api/v1/start` options, natural-order collections, and partition copy counts.
+
+When the latest `/progress` includes `ceaStage` (`collection copy drain` or `steady state`), Summary shows a **CEA stage** metric next to Catch-up estimate. Older logs without the field omit the metric.
 
 The subtitle shows the timestamp of that latest `/progress` line so it is clear the page is a snapshot from the uploaded file.
 
@@ -84,6 +86,8 @@ The subtitle shows the timestamp of that latest `/progress` line so it is clear 
 ### Mongosync Logs
 
 Interactive Plotly charts grouped by section (global migration, collection copy, CEA, indexes, verifier). Zoom, pan, and toggle series from the legend. The **Mongosync Progress** table includes a **Copy as Markdown** badge on the chart for sharing phase and state-transition rows.
+
+For mongosync **1.22+**, the **CEA stage** chart (next to Catch-up estimate) plots `collection copy drain` vs `steady state` over time from `"Replication progress"` and `sent response` `/progress` samples. Drain intervals are also shaded on the **Lag Time** chart so lag during drain is easier to distinguish from lag in steady state. Pre-1.22 logs show NO DATA for the stage chart and leave lag unshaded.
 
 ![Log Analyzer - Mongosync Logs](images/mongosync_logs_logs.png)
 

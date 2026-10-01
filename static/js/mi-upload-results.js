@@ -1111,6 +1111,9 @@ function lvBuildSummary(parsed) {
         } else if (progress.lagTimeSeconds !== undefined) {
             parts.push('lag=' + progress.lagTimeSeconds + 's');
         }
+        if (progress.ceaStage && String(progress.ceaStage).toLowerCase() !== 'n/a') {
+            parts.push('ceaStage=' + progress.ceaStage);
+        }
         if (progress.collectionCopy) {
             var cc = progress.collectionCopy;
             if (cc.estimatedTotalBytes !== undefined && cc.estimatedCopiedBytes !== undefined) {
@@ -1118,6 +1121,8 @@ function lvBuildSummary(parsed) {
                 parts.push('copy=' + pct + '%');
             }
         }
+    } else if (parsed.ceaStage && String(parsed.ceaStage).toLowerCase() !== 'n/a') {
+        parts.push('ceaStage=' + parsed.ceaStage);
     }
     return parts.join(' | ');
 }

@@ -34,6 +34,7 @@ from .utils import (
     format_ratio,
     resolve_replication_lag,
     format_seconds_title,
+    normalize_cea_stage,
 )
 
 _MIGRATION_START_TIME_TITLE = (
@@ -351,9 +352,9 @@ def _build_lag_breakdown(lag_resolved):
     }
 
 
-def _build_progress_metrics(progress, lag_resolved):
+def _build_progress_metrics(progress, lag_resolved, *, summary=False):
     overall = lag_resolved.get("overall") if lag_resolved else None
-    return [
+    metrics = [
         _duration_metric("Lag time", overall, small=False),
         {"label": "Events applied", "value": format_count(progress.get("totalEventsApplied")), "small": False},
         {
@@ -366,19 +367,34 @@ def _build_progress_metrics(progress, lag_resolved):
             progress.get("estimatedSecondsToCEACatchup"),
             small=True,
         ),
-        {
-            "label": "Can commit",
-            "value": "TRUE" if progress.get("canCommit") else "FALSE",
-            "badge": "green" if progress.get("canCommit") else "gray",
-            "small": True,
-        },
-        {
-            "label": "Can write",
-            "value": "TRUE" if progress.get("canWrite") else "FALSE",
-            "badge": "green" if progress.get("canWrite") else "gray",
-            "small": True,
-        },
     ]
+    if summary:
+        cea_stage = normalize_cea_stage(progress.get("ceaStage"))
+        if cea_stage:
+            metrics.append(
+                {
+                    "label": "CEA stage",
+                    "value": cea_stage,
+                    "small": True,
+                }
+            )
+    metrics.extend(
+        [
+            {
+                "label": "Can commit",
+                "value": "TRUE" if progress.get("canCommit") else "FALSE",
+                "badge": "green" if progress.get("canCommit") else "gray",
+                "small": True,
+            },
+            {
+                "label": "Can write",
+                "value": "TRUE" if progress.get("canWrite") else "FALSE",
+                "badge": "green" if progress.get("canWrite") else "gray",
+                "small": True,
+            },
+        ]
+    )
+    return metrics
 
 
 def _build_db_only_metrics(lag_resolved):
@@ -497,7 +513,7 @@ def _build_sync_card(
         info_lower = info.lower()
         phase = info or "—"
         lag_resolved = resolve_replication_lag(progress)
-        metrics = _build_progress_metrics(progress, lag_resolved)
+        metrics = _build_progress_metrics(progress, lag_resolved, summary=summary)
         lag_breakdown = _build_lag_breakdown(lag_resolved)
 
         collection_copy = progress.get("collectionCopy") or {}

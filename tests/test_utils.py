@@ -8,6 +8,7 @@ from lib.utils import (
     format_count,
     format_lag_time_seconds,
     format_ratio,
+    normalize_cea_stage,
     resolve_replication_lag,
     format_seconds_title,
 )
@@ -187,3 +188,22 @@ class TestConvertBytes:
     )
     def test_convert_bytes(self, size, target, expected):
         assert convert_bytes(size, target) == expected
+
+
+class TestNormalizeCeaStage:
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (None, None),
+            ("", None),
+            ("n/a", None),
+            ("N/A", None),
+            ("collection copy drain", "collection copy drain"),
+            ("Collection Copy Drain", "collection copy drain"),
+            ("steady state", "steady state"),
+            ("  steady state  ", "steady state"),
+            ("future stage label", "future stage label"),
+        ],
+    )
+    def test_normalize_cea_stage(self, value, expected):
+        assert normalize_cea_stage(value) == expected

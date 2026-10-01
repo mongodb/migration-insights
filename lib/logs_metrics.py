@@ -17,7 +17,7 @@ import os
 import sys
 import mimetypes
 from werkzeug.utils import secure_filename
-from .utils import format_byte_size, convert_bytes, resolve_replication_lag
+from .utils import format_byte_size, convert_bytes, resolve_replication_lag, normalize_cea_stage
 from .app_config import (
     MAX_FILE_SIZE, ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES,
     load_error_patterns, classify_file_type, is_multi_file_archive,
@@ -112,6 +112,86 @@ _CRUD_EVENTS_RATE_LEGACY_MSG = re.compile(
 _CRUD_EVENTS_RATE_CURRENT_MSG = re.compile(
     r"Estimated average rate of CRUD events on the source\.?", re.IGNORECASE,
 )
+
+_CEA_STAGE_DRAIN = "collection copy drain"
+
+
+def _parse_log_datetime(time_raw):
+    """Parse a mongosync log timestamp prefix into a naive datetime, or None."""
+    if not time_raw:
+        return None
+    try:
+        return datetime.strptime(str(time_raw)[:26], "%Y-%m-%dT%H:%M:%S.%f")
+    except (TypeError, ValueError):
+        return None
+
+
+def extract_cea_stage_series(replication_lines, sent_responses):
+    """Merge ceaStage samples from Replication progress and sent /progress bodies.
+
+    Replication progress wins on duplicate timestamps. Returns (times, stages)
+    sorted ascending by time. Stages are normalized via ``normalize_cea_stage``.
+    """
+    by_time = {}
+
+    for item in replication_lines or []:
+        if not isinstance(item, dict):
+            continue
+        stage = normalize_cea_stage(item.get("ceaStage"))
+        if not stage:
+            continue
+        t = _parse_log_datetime(item.get("time"))
+        if t is None:
+            continue
+        by_time[t] = stage
+
+    for response in sent_responses or []:
+        if not isinstance(response, dict):
+            continue
+        t = _parse_log_datetime(response.get("time"))
+        if t is None or t in by_time:
+            continue
+        try:
+            parsed_body = json.loads(response.get("body") or "{}")
+        except (json.JSONDecodeError, TypeError):
+            continue
+        progress = (parsed_body or {}).get("progress") or {}
+        if not isinstance(progress, dict):
+            continue
+        stage = normalize_cea_stage(progress.get("ceaStage"))
+        if not stage:
+            continue
+        by_time[t] = stage
+
+    times = sorted(by_time.keys())
+    return times, [by_time[t] for t in times]
+
+
+def cea_stage_drain_intervals(times, stages):
+    """Build (start, end) intervals for contiguous collection-copy-drain runs.
+
+    End is the next sample after the run when available; otherwise the last
+    sample in the run. Zero-width intervals (single point at series end) are
+    omitted so Plotly vrects remain visible only when they have span.
+    """
+    if not times or not stages or len(times) != len(stages):
+        return []
+    intervals = []
+    i = 0
+    n = len(stages)
+    while i < n:
+        if stages[i] != _CEA_STAGE_DRAIN:
+            i += 1
+            continue
+        j = i
+        while j + 1 < n and stages[j + 1] == _CEA_STAGE_DRAIN:
+            j += 1
+        t_start = times[i]
+        t_end = times[j + 1] if j + 1 < n else times[j]
+        if t_end > t_start:
+            intervals.append((t_start, t_end))
+        i = j + 1
+    return intervals
 
 
 def _is_crud_events_rate_log(json_obj):
@@ -1000,6 +1080,11 @@ def upload_file():
             except (json.JSONDecodeError, TypeError, ValueError, AttributeError):
                 continue
 
+        cea_stage_times, cea_stage_labels = extract_cea_stage_series(
+            data, mongosync_sent_response
+        )
+        cea_drain_intervals = cea_stage_drain_intervals(cea_stage_times, cea_stage_labels)
+
         # progress.verification (from sent response) for embedded verifier charts
         verif_src_scan_times = []
         verif_src_scanned = []
@@ -1104,6 +1189,8 @@ def upload_file():
             all_times.extend(src_lag_times)
         if cea_catchup_times:
             all_times.extend(cea_catchup_times)
+        if cea_stage_times:
+            all_times.extend(cea_stage_times)
         if verif_src_scan_times:
             all_times.extend(verif_src_scan_times)
         if verif_dst_scan_times:
@@ -1181,7 +1268,7 @@ def upload_file():
         fig = make_subplots(rows=17, cols=2, subplot_titles=("Mongosync Phases", "Mongosync Progress",
                                                             "Lag Time (seconds)", "Estimated Source Oplog Time Remaining (minutes)",
                                                             "Ping Latency (ms)", "Average Source CRUD Event Rate (Events/sec)",
-                                                            "Est. seconds to CEA catchup", "",
+                                                            "Est. seconds to CEA catchup", "CEA stage",
                                                             "Partition Init Progress", "Partition Init Summary",
                                                             "Data Copied (" + estimated_total_bytes_unit + ")", "Estimated Total and Copied " + estimated_total_bytes_unit,
                                                             "Partitions Copied", "Total and Copied Partitions",
@@ -1198,7 +1285,7 @@ def upload_file():
                             specs=[ [{}, {"type": "table"}], #Row 1: Mongosync Phases and Mongosync Progress
                                     [{}, {}], #Row 2: Lag Time and Estimated Source Oplog Time Remaining
                                     [{}, {}], #Row 3: Ping Latency and CRUD Event Rate
-                                    [{}, {}], #Row 4: CEA catchup (col 1); col 2 intentionally empty
+                                    [{}, {}], #Row 4: CEA catchup (col 1); CEA stage (col 2)
                                     [{}, {"type": "table"}], #Row 5: Partition Init Progress and Summary
                                     [{}, {}], #Row 6: Data Copied Over Time + Estimated Total and Copied
                                     [{}, {}], #Row 7: Partitions Copied and Completion %
@@ -1290,6 +1377,17 @@ def upload_file():
             fig.add_trace(go.Scatter(x=[0], y=[0], text="NO DATA", mode='text', name='Lag Time',textfont=dict(size=30, color="black")), row=2, col=1)
             fig.update_yaxes(range=[-1, 1], row=2, col=1)
             fig.update_xaxes(range=[-1, 1], row=2, col=1)
+        for idx, (t0, t1) in enumerate(cea_drain_intervals):
+            fig.add_vrect(
+                x0=t0,
+                x1=t1,
+                fillcolor="rgba(255, 193, 7, 0.18)",
+                line_width=0,
+                row=2,
+                col=1,
+                annotation_text="CEA: collection copy drain" if idx == 0 else "",
+                annotation_position="top left",
+            )
 
         # Row 2: Estimated Source Oplog Time Remaining (minutes)
         if oplog_remaining_minutes:
@@ -1344,8 +1442,34 @@ def upload_file():
             )
             fig.update_yaxes(range=[-1, 1], row=4, col=1)
             fig.update_xaxes(range=[-1, 1], row=4, col=1)
-        fig.update_xaxes(visible=False, row=4, col=2)
-        fig.update_yaxes(visible=False, row=4, col=2)
+        if cea_stage_times:
+            fig.add_trace(
+                go.Scatter(
+                    x=cea_stage_times,
+                    y=cea_stage_labels,
+                    mode='lines+markers',
+                    line_shape='hv',
+                    name='CEA stage',
+                    legendgroup="groupCEAStage",
+                ),
+                row=4,
+                col=2,
+            )
+        else:
+            fig.add_trace(
+                go.Scatter(
+                    x=[0],
+                    y=[0],
+                    text="NO DATA",
+                    mode='text',
+                    name='CEA stage',
+                    textfont=dict(size=30, color="black"),
+                ),
+                row=4,
+                col=2,
+            )
+            fig.update_yaxes(range=[-1, 1], row=4, col=2)
+            fig.update_xaxes(range=[-1, 1], row=4, col=2)
 
         # Row 5: Partition Init Progress - collections initializing vs completed over time
         if partition_init_progress_times:
@@ -1671,13 +1795,12 @@ def upload_file():
                 )
         
         # Synchronize X-axis date range across all date-based plots
-        # Tables at row 1 col 2 and row 5 col 2 are excluded; row 4 col 2 is intentionally empty
+        # Tables at row 1 col 2 and row 5 col 2 are excluded
         if global_min_date and global_max_date:
             fig.update_xaxes(range=[global_min_date, global_max_date], row=1, col=1)
-            for row in range(2, 4):  # rows 2-3 (both cols are charts)
+            for row in range(2, 5):  # rows 2-4 (both cols are charts)
                 for col in range(1, 3):
                     fig.update_xaxes(range=[global_min_date, global_max_date], row=row, col=col)
-            fig.update_xaxes(range=[global_min_date, global_max_date], row=4, col=1)
             fig.update_xaxes(range=[global_min_date, global_max_date], row=5, col=1)
             for row in range(6, 18):  # rows 6-17 (both cols are charts)
                 for col in range(1, 3):

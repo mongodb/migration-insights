@@ -892,6 +892,35 @@ class TestBuildLogSummaryPayload:
         assert badges["progress"]["label"] == "Latest /progress"
         assert badges["progress"]["status"] == "active"
 
+    def test_summary_includes_cea_stage_metric(self):
+        payload = build_log_summary_payload(
+            progress={
+                "state": "RUNNING",
+                "info": "change event application",
+                "ceaStage": "steady state",
+                "lagTimeSeconds": 12,
+            },
+            progress_time="2026-09-16T12:00:00.000Z",
+        )
+        metrics = {
+            m["label"]: m["value"] for m in payload["display"]["sync"]["metrics"]
+        }
+        assert metrics["CEA stage"] == "steady state"
+
+    def test_summary_omits_cea_stage_when_absent(self):
+        payload = build_log_summary_payload(
+            progress={
+                "state": "RUNNING",
+                "info": "collection copy",
+                "lagTimeSeconds": 12,
+            },
+            progress_time="2026-09-16T12:00:00.000Z",
+        )
+        metrics = {
+            m["label"]: m["value"] for m in payload["display"]["sync"]["metrics"]
+        }
+        assert "CEA stage" not in metrics
+
     def test_summary_includes_mongosync_version(self):
         payload = build_log_summary_payload(
             progress={"state": "RUNNING", "info": "collection copy"},
