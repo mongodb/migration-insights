@@ -33,11 +33,9 @@ Invalid numeric environment variables or an unrecognized `LOG_LEVEL` cause immed
 |----------|---------|-------------|
 | `MI_HOST` | `127.0.0.1` | Server host address (use `0.0.0.0` for all interfaces) |
 | `MI_PORT` | `3030` | Server port number |
-| `MI_MONITORING_ENABLED` | `true` | When `false`, `/` redirects to `/logs/` and Migration Monitoring (`/live`) is not registered. |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 | `MI_LOG_FILE` | `insights.log` | Path to log file (used when `MI_LOG_JSON` is false) |
 | `MI_LOG_JSON` | `false` | When `true`, emit one JSON object per line on stdout (Kanopy/Splunk) and skip `MI_LOG_FILE`. |
-| `MI_KANOPY_IDENTITY` | `false` | When `true`, the owner of a saved log analysis is the Kanopy JWT `sub` (username) from `X-Kanopy-Internal-Authorization`, then `X-Forwarded-User-Token`, then `Authorization`. The mesh verifies the signature; Migration Insights only reads the payload. A missing or invalid token makes upload and delete return 401 and the previous-analyses list empty. When `false`, the owner is the HttpOnly cookie `mi_file_owner` (a random id, set for one year on the first logs visit or upload). List, load, search, replace, and click-delete only see that owner. Age cleanup deletes expired files regardless of owner. |
 
 ### MongoDB Connection
 
@@ -69,28 +67,6 @@ Invalid numeric environment variables or an unrecognized `LOG_LEVEL` cause immed
 | `MI_ALLOWED_ENDPOINT_HOSTS` | _(empty)_ | Comma-separated allowlist of hosts that mongosync/verifier endpoints may point at (for example `mongosync-1.internal,10.0.0.5`). Empty means any host entered in the UI is accepted. Set this when the app is reachable by anyone other than the operator. |
 
 > **Note**: Progress, summary, and mismatch requests are sent to exactly the validated `host:port` and API path — HTTP redirects returned by the endpoint are **not** followed, so a misconfigured or hostile endpoint cannot steer the fetch to another URL. A redirect surfaces as an endpoint error in the UI. Point the variable directly at the mongosync/verifier API host and port, not at a proxy that redirects.
-
-### File Upload Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MI_MAX_FILE_SIZE` | `10737418240` | Max upload file size in bytes (10GB) |
-
-### Log Analysis Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MI_ERROR_PATTERNS_FILE` | `lib/error_patterns.json` | Path to a custom error patterns JSON file for Log Analyzer error detection (e.g., oplog rollover, timeouts, verifier mismatches). Set via environment variable before startup. Each entry may include an optional `recommendation` string, shown in the Errors tab when a line matches that pattern. |
-
-### Log Viewer & Snapshot Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MI_LOG_VIEWER_MAX_LINES` | `2000` | Maximum number of recent log lines shown in the Log Viewer tail view |
-| `MI_LOG_STORE_DIR` | System temp directory | Directory for SQLite log stores and analysis snapshot files |
-| `MI_LOG_STORE_MAX_AGE_HOURS` | `24` | TTL in hours for in-memory log store registry entries (`created_at`) and on-disk SQLite stores / snapshot files (file `mtime`) |
-
-> **Note**: By default, log store databases and snapshot files are saved to the OS temp directory (e.g., `/tmp` on Linux/macOS), which may be cleared on system reboot. Set `MI_LOG_STORE_DIR` to a persistent path (e.g., `/data/migration-insights/store`) to retain snapshots across restarts. Maintenance runs when the app is initialized (`create_app`, including packaged and `flask run` imports) and on logout: expired registry entries are removed, then on-disk `mi_logstore_*.db` and snapshot files older than `MI_LOG_STORE_MAX_AGE_HOURS` (by file `mtime`) are deleted. Expired snapshots are hidden from the **Previous Analyses** list before deletion. Loading a saved snapshot touches snapshot/DB `mtime`, extending on-disk retention for another TTL period; it does not reset in-memory registry `created_at`. Lower `MI_LOG_STORE_MAX_AGE_HOURS` if multi-GB log stores accumulate during a session.
 
 ### Security Settings
 
@@ -206,17 +182,6 @@ python3 migration_insights.py
 tail -f /var/log/migration-insights/debug.log
 ```
 
-### Example 4b: Custom Log Analyzer Error Patterns
-
-Point Log Analyzer at a custom error-patterns file (absolute path recommended in production):
-
-```bash
-export MI_ERROR_PATTERNS_FILE="/etc/migration-insights/custom_error_patterns.json"
-python3 migration_insights.py
-```
-
-Each JSON entry requires `pattern` and `friendly_name`; `recommendation` is optional. See the bundled `lib/error_patterns.json` for the schema.
-
 ### Example 5: Production Configuration with HTTPS
 
 Secure production setup with HTTPS:
@@ -247,19 +212,7 @@ python3 migration_insights.py
 
 See [HTTPS_SETUP.md](HTTPS_SETUP.md) for complete production deployment guide.
 
-### Example 6: Custom Upload Size
-
-Adjust the maximum log file upload size:
-
-```bash
-# Allow larger log files (20GB)
-export MI_MAX_FILE_SIZE=21474836480
-
-# Run the application
-python3 migration_insights.py
-```
-
-### Example 7: Migration Verifier Monitoring
+### Example 6: Migration Verifier Monitoring
 
 Pre-configure the migration-verifier progress endpoint and/or connection string:
 
@@ -297,24 +250,6 @@ python3 migration_insights.py
 ```
 
 **Note**: When `MI_VERIFIER_CONNECTION_STRING` is not set, it falls back to `MI_CONNECTION_STRING`. Set it explicitly when the migration-verifier writes to a different cluster. The verifier metadata database name is not configurable via the UI; use `MI_MIGRATION_VERIFIER_DB_NAME` to override the default. Provide at least one of the progress endpoint or connection string (via env or UI).
-
-### Example 8: Persistent Snapshots and Custom Log Viewer
-
-Configure snapshot storage location, retention period, and log viewer buffer size:
-
-```bash
-# Store snapshots in a persistent directory
-export MI_LOG_STORE_DIR=/data/migration-insights/store
-
-# Keep snapshots for 48 hours instead of the default 24
-export MI_LOG_STORE_MAX_AGE_HOURS=48
-
-# Show up to 5000 recent log lines in the Log Viewer tail view
-export MI_LOG_VIEWER_MAX_LINES=5000
-
-# Run the application
-python3 migration_insights.py
-```
 
 ---
 
@@ -381,7 +316,6 @@ export MI_LOG_FILE=/var/log/migration-insights/insights.log
 ## Related Documentation
 
 - **[README.md](README.md)** - Getting started and installation guide
-- **[LOG_ANALYZER.md](LOG_ANALYZER.md)** - Log Analyzer feature guide
 - **[MIGRATION_MONITORING.md](MIGRATION_MONITORING.md)** - Migration Monitoring feature guide
 - **[HTTPS_SETUP.md](HTTPS_SETUP.md)** - Enable HTTPS/SSL for secure deployments
 - **[CONNECTION_STRING.md](CONNECTION_STRING.md)** - Connection string formats, security, and troubleshooting

@@ -1,5 +1,5 @@
 /* Live monitoring pages: imports Summary styles, then live/verifier-only rules */
-@import url('mi-log-summary.css');
+@import url('mi-monitor-cards.css');
 
 #live-monitor-tab {
     margin: 0 -20px;

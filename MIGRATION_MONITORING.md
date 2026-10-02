@@ -223,7 +223,6 @@ HTTP timeouts and other advanced settings: see **[CONFIGURATION.md](CONFIGURATIO
 ## Related documentation
 
 - **[CONFIGURATION.md](CONFIGURATION.md)** — environment variables (`MI_REFRESH_TIME`, `MI_PROGRESS_ENDPOINT_URL`, `MI_INDEX_BUILD_REFRESH_TIME`, etc.)
-- **[LOG_ANALYZER.md](LOG_ANALYZER.md)** — offline log analysis
 - **[CONNECTION_STRING.md](CONNECTION_STRING.md)** — connection string formats and security
 - **[PACKAGING.md](PACKAGING.md)** — pre-configuring env vars in packaged installs
 

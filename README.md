@@ -1,15 +1,10 @@
 # Migration Insights
 
-Web dashboard for **mongosync** migrations: log analysis, real-time **Migration Monitoring**, and migration-verifier tracking.
+Web dashboard for real-time **mongosync** Migration Monitoring and migration-verifier tracking.
 
-## Workflows
+## Workflow
 
-| Section | Description |
-|---------|-------------|
-| **Log analyzer** | Upload and parse mongosync logs and metrics; interactive charts, **Summary** snapshot (latest `/progress` from the log), **CEA Busiest Collections** (when CEA CRUD stats are present), search, and saved analysis snapshots |
-| **Migration monitoring** | Unified monitoring: mongosync progress endpoint, optional destination connection string, embedded verifier (default), and optional standalone Migration Verifier endpoint. Routes to Full Migration, combined Dashboard, or Full Verifier depending on inputs |
-
-See **[LOG_ANALYZER.md](LOG_ANALYZER.md)** for uploading logs, analysis tabs (including Summary and CEA Busiest Collections), snapshots, and the Log Viewer.
+**Migration monitoring** connects to a running mongosync migration: mongosync progress endpoint, optional destination connection string, embedded verifier (default), and optional standalone Migration Verifier endpoint. It routes to Full Migration, combined Dashboard, or Full Verifier depending on inputs.
 
 See **[MIGRATION_MONITORING.md](MIGRATION_MONITORING.md)** for the unified setup form, routing, data sources, polling, manual mismatch summary, index-building and verifier fallbacks.
 
@@ -23,7 +18,7 @@ See **[MIGRATION_MONITORING.md](MIGRATION_MONITORING.md)** for the unified setup
 
 Migration Insights was developed and tested with **mongosync 1.21**.
 
-Earlier and later mongosync versions may work where log formats and APIs (for example `/api/v1/progress` and internal metadata databases) are unchanged. Behavior with untested versions is not guaranteed. Validate charts and monitoring panels against your mongosync version before relying on them in production.
+Earlier and later mongosync versions may work where APIs (for example `/api/v1/progress` and internal metadata databases) are unchanged. Behavior with untested versions is not guaranteed. Validate monitoring panels against your mongosync version before relying on them in production.
 
 ## Migration Verifier compatibility
 
@@ -76,12 +71,10 @@ CI runs the same tests on push and pull request (see `.github/workflows/migratio
 ## Documentation
 
 - **[CONFIGURATION.md](CONFIGURATION.md)** — environment variables
-- **[LOG_ANALYZER.md](LOG_ANALYZER.md)** — Log Analyzer feature guide
 - **[MIGRATION_MONITORING.md](MIGRATION_MONITORING.md)** — Migration Monitoring feature guide
 - **[PACKAGING.md](PACKAGING.md)** — standalone builds (macOS, Windows, Linux packages)
 - **[CONNECTION_STRING.md](CONNECTION_STRING.md)** — connection string guide
 - **[HTTPS_SETUP.md](HTTPS_SETUP.md)** — production HTTPS setup
-- **[LOG_VERBOSITY.md](LOG_VERBOSITY.md)** — logging levels
 
 ### License
 

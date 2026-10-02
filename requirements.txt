@@ -11,11 +11,6 @@ MarkupSafe==3.0.3
 blinker==1.9.0
 click==8.4.1
 
-# Plotting and Visualization
-plotly==6.7.0
-narwhals==2.21.2
-packaging==25.0
-
 # MongoDB Driver
 pymongo==4.17.0
 dnspython==2.8.0
@@ -32,6 +27,3 @@ idna==3.16
 
 # TLS Certificate Bundle
 certifi==2026.5.20
-
-# Progress Bars
-tqdm==4.67.3

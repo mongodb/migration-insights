@@ -19,7 +19,7 @@
         var dialog = overlay.querySelector('[role="dialog"]');
         if (dialog) return dialog;
         return overlay.querySelector(
-            '.settings-dialog, .confirm-dialog, .credits-panel, .upload-dialog, .dup-dialog'
+            '.settings-dialog, .confirm-dialog, .credits-panel'
         );
     }
 

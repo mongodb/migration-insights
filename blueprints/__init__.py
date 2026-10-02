@@ -1,1 +1,1 @@
-"""Flask blueprints: logs (log analyzer) and live (monitoring + verifier)."""
+"""Flask blueprint for Migration Monitoring and Migration Verifier."""

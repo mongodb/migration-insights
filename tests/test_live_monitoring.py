@@ -448,15 +448,6 @@ class TestBuildHelpers:
         assert "initializing collections and indexes" in start_metric["title"]
         assert "/start" in start_metric["title"]
 
-    def test_build_metadata_metrics_summary_labels(self):
-        metrics = _build_metadata_metrics(
-            {"start": "2026-01-01", "finish": "2026-01-02"},
-            summary=True,
-        )
-        labels = [m["label"] for m in metrics]
-        assert "Migration Committed" in labels
-        assert "Finish" not in labels
-
     def test_build_progress_metrics(self):
         lag = {"overall": 1582, "crud": None, "ddl": None, "has_breakdown": False}
         metrics = _build_progress_metrics(
@@ -479,33 +470,12 @@ class TestBuildHelpers:
         assert "title" not in by_label["Events applied"]
         assert "CEA stage" not in by_label
 
-    def test_build_progress_metrics_summary_includes_cea_stage(self):
-        lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
-        metrics = _build_progress_metrics(
-            {
-                "ceaStage": "collection copy drain",
-                "canCommit": False,
-                "canWrite": False,
-            },
-            lag,
-            summary=True,
-        )
-        by_label = {m["label"]: m for m in metrics}
-        assert by_label["CEA stage"]["value"] == "collection copy drain"
-        assert by_label["CEA stage"]["small"] is True
-
-    def test_build_progress_metrics_live_omits_cea_stage(self):
+    def test_build_progress_metrics_omits_cea_stage(self):
         lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
         metrics = _build_progress_metrics(
             {"ceaStage": "steady state"},
             lag,
-            summary=False,
         )
-        assert "CEA stage" not in {m["label"] for m in metrics}
-
-    def test_build_progress_metrics_summary_omits_missing_cea_stage(self):
-        lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
-        metrics = _build_progress_metrics({}, lag, summary=True)
         assert "CEA stage" not in {m["label"] for m in metrics}
 
     def test_db_only_metrics_lag_title(self):

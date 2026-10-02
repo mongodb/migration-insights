@@ -34,7 +34,6 @@ from .utils import (
     format_ratio,
     resolve_replication_lag,
     format_seconds_title,
-    normalize_cea_stage,
 )
 
 _MIGRATION_START_TIME_TITLE = (
@@ -268,11 +267,10 @@ def _display_or_dash(value):
     return str(value)
 
 
-def _build_metadata_metrics(metadata, *, summary=False):
+def _build_metadata_metrics(metadata):
     """Second metrics row from internal database (connection string required)."""
     if not metadata:
         return []
-    finish_label = "Migration Committed" if summary else "Finish"
     return [
         {
             "label": "Migration Start time",
@@ -280,7 +278,7 @@ def _build_metadata_metrics(metadata, *, summary=False):
             "title": _MIGRATION_START_TIME_TITLE,
             "small": True,
         },
-        {"label": finish_label, "value": _display_or_dash(metadata.get("finish")), "small": True},
+        {"label": "Finish", "value": _display_or_dash(metadata.get("finish")), "small": True},
         {
             "label": "Reversible",
             "value": _display_or_dash(metadata.get("reversible")),
@@ -352,7 +350,7 @@ def _build_lag_breakdown(lag_resolved):
     }
 
 
-def _build_progress_metrics(progress, lag_resolved, *, summary=False):
+def _build_progress_metrics(progress, lag_resolved):
     overall = lag_resolved.get("overall") if lag_resolved else None
     metrics = [
         _duration_metric("Lag time", overall, small=False),
@@ -368,16 +366,6 @@ def _build_progress_metrics(progress, lag_resolved, *, summary=False):
             small=True,
         ),
     ]
-    if summary:
-        cea_stage = normalize_cea_stage(progress.get("ceaStage"))
-        if cea_stage:
-            metrics.append(
-                {
-                    "label": "CEA stage",
-                    "value": cea_stage,
-                    "small": True,
-                }
-            )
     metrics.extend(
         [
             {
@@ -472,7 +460,7 @@ def _bytes_copy_percent(copied, total):
     return min(100.0, (copied / total) * 100)
 
 
-def _build_phase_start_times(metadata, *, summary=False):
+def _build_phase_start_times(metadata):
     if not metadata:
         return None
     rows = metadata.get("phaseTransitions") or []
@@ -482,22 +470,8 @@ def _build_phase_start_times(metadata, *, summary=False):
         "label": "Phase start times",
         "rows": rows,
         "timezoneNote": "UTC",
-        "timezoneNoteBelowTitle": summary,
+        "timezoneNoteBelowTitle": False,
     }
-
-
-def _apply_summary_mongosync_version(sync_card, *, summary=False, mongosync_version=None):
-    if not summary:
-        return sync_card
-    sync_card["showMongosyncVersion"] = True
-    if mongosync_version:
-        sync_card["mongosyncVersion"] = mongosync_version
-    else:
-        sync_card["mongosyncVersionMissingTitle"] = (
-            "Missing initial log file for version capture.\n"
-            "Upload all rotated mongosync files for full analysis"
-        )
-    return sync_card
 
 
 def _build_sync_card(
@@ -505,15 +479,13 @@ def _build_sync_card(
     metadata=None,
     *,
     progress_available=False,
-    summary=False,
-    mongosync_version=None,
 ):
     if progress_available and progress:
         info = progress.get("info") or ""
         info_lower = info.lower()
         phase = info or "—"
         lag_resolved = resolve_replication_lag(progress)
-        metrics = _build_progress_metrics(progress, lag_resolved, summary=summary)
+        metrics = _build_progress_metrics(progress, lag_resolved)
         lag_breakdown = _build_lag_breakdown(lag_resolved)
 
         collection_copy = progress.get("collectionCopy") or {}
@@ -528,8 +500,7 @@ def _build_sync_card(
             f"{copy_prefix}{format_bytes_compact(copied)} of {format_bytes_compact(total)}"
         )
 
-        return _apply_summary_mongosync_version(
-            {
+        return {
             "phase": phase,
             "copyPercent": copy_percent,
             "copyIndeterminate": copy_indeterminate,
@@ -539,13 +510,10 @@ def _build_sync_card(
             "partitionsCopiedLabel": _build_partitions_copied_label(metadata),
             "showCopyProgress": copy_percent is not None or copy_indeterminate,
             "metrics": metrics,
-            "metadataMetrics": _build_metadata_metrics(metadata, summary=summary),
-            "phaseStartTimes": _build_phase_start_times(metadata, summary=summary),
+            "metadataMetrics": _build_metadata_metrics(metadata),
+            "phaseStartTimes": _build_phase_start_times(metadata),
             "lagBreakdown": lag_breakdown,
-            },
-            summary=summary,
-            mongosync_version=mongosync_version,
-        )
+        }
 
     phase = _display_or_dash(metadata.get("phase") if metadata else None)
     phase_lower = (metadata.get("phase") or "").lower() if metadata else ""
@@ -571,8 +539,7 @@ def _build_sync_card(
         copy_indeterminate = True
         show_copy_progress = True
 
-    return _apply_summary_mongosync_version(
-        {
+    return {
         "phase": phase,
         "copyPercent": copy_percent,
         "copyIndeterminate": copy_indeterminate,
@@ -582,13 +549,10 @@ def _build_sync_card(
         "partitionsCopiedLabel": _build_partitions_copied_label(metadata),
         "showCopyProgress": show_copy_progress,
         "metrics": _build_db_only_metrics(lag_resolved),
-        "metadataMetrics": _build_metadata_metrics(metadata, summary=summary),
-        "phaseStartTimes": _build_phase_start_times(metadata, summary=summary),
+        "metadataMetrics": _build_metadata_metrics(metadata),
+        "phaseStartTimes": _build_phase_start_times(metadata),
         "lagBreakdown": _build_lag_breakdown(lag_resolved),
-        },
-        summary=summary,
-        mongosync_version=mongosync_version,
-    )
+    }
 
 
 _INDEX_BUILDING_DESCRIPTION = (
@@ -939,32 +903,11 @@ def _build_progress_only_display(progress, metadata=None):
     }
 
 
-_SUMMARY_SYNC_CARD_TITLE = "Latest Progress Status"
-_SUMMARY_INDEX_BUILDING_TITLE = "Latest Index building info"
-_SUMMARY_VERIFICATION_TITLE = "Latest Embedded Verifier status"
-
-
-def _apply_log_summary_titles(display):
-    """Use log-analyzer Summary labels instead of live Migration Monitoring titles."""
-    sync = display.get("sync")
-    if sync is not None:
-        sync["cardTitle"] = _SUMMARY_SYNC_CARD_TITLE
-    index_building = display.get("indexBuilding")
-    if index_building:
-        index_building["title"] = _SUMMARY_INDEX_BUILDING_TITLE
-    verification = display.get("verification")
-    if verification:
-        verification["title"] = _SUMMARY_VERIFICATION_TITLE
-    return display
-
-
 def _build_display(
     progress,
     metadata,
     *,
     progress_available=False,
-    summary=False,
-    mongosync_version=None,
 ):
     if progress_available and progress:
         state = (progress.get("state") or "").upper() or "—"
@@ -977,8 +920,6 @@ def _build_display(
         progress=progress,
         metadata=metadata,
         progress_available=progress_available,
-        summary=summary,
-        mongosync_version=mongosync_version,
     )
 
     display = {
@@ -996,7 +937,7 @@ def _build_display(
     index_building = None
     if progress_available and progress:
         index_building = _build_index_building(progress)
-        if index_building and metadata and not summary and should_suppress_index_build_progress(
+        if index_building and metadata and should_suppress_index_build_progress(
             metadata.get("buildIndexesRaw"),
             metadata.get("syncPhase"),
         ):
@@ -1027,9 +968,6 @@ def _build_display(
 
     display["naturalOrder"] = _build_natural_order(metadata)
     display["filteredMigration"] = _build_filtered_migration(metadata)
-
-    if summary:
-        _apply_log_summary_titles(display)
 
     return display
 

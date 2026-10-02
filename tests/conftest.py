@@ -4,17 +4,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from lib import snapshot_store
-
 
 @pytest.fixture
 def app_client(tmp_path, monkeypatch):
-    """Flask test client with isolated log/snapshot directories."""
+    """Flask test client with an isolated application log file."""
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
     monkeypatch.setenv("MI_LOG_FILE", str(log_dir / "insights.log"))
-    monkeypatch.setattr(snapshot_store, "LOG_STORE_DIR", str(tmp_path / "store"))
-    (tmp_path / "store").mkdir(exist_ok=True)
 
     with patch("lib.app_config.validate_config", return_value=True):
         with patch("lib.app_config.setup_logging") as mock_log:
@@ -56,34 +52,6 @@ def sample_metadata():
             {"Phase": "collection copy", "Ts": {"T": 1700000000}},
         ],
         "lagTimeSeconds": 90,
-    }
-
-
-@pytest.fixture
-def minimal_template_data():
-    return {
-        "plot_json": "{}",
-        "metrics_plot_json": "",
-        "options_data": [],
-        "hidden_options_data": [],
-        "start_options_data": [],
-        "natural_order_data": [],
-        "errors_data": [],
-        "partition_init_data": [],
-        "progress_data": [],
-        "summary_payload": {},
-        "has_logs_data": False,
-        "has_replication_progress": False,
-        "has_metrics_data": False,
-        "log_viewer_lines": [],
-        "log_viewer_max_lines": 1000,
-        "log_store_id": "",
-        "busiest_collections_data": [],
-        "busiest_collections_warnings": [],
-        "busiest_collections_meta": {},
-        "busiest_collections_event_types": [],
-        "busiest_collections_plot_json": "",
-        "has_busiest_collections_data": False,
     }
 
 

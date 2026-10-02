@@ -1,27 +1,20 @@
-import logging
 import os
 import sys
 
 from flask import (
     Flask,
     make_response,
-    redirect,
-    render_template,
     request,
     send_from_directory,
-    url_for,
 )
-from markupsafe import Markup
 
 try:
     from lib.app_config import (
         DEVELOPER_CREDITS,
         APP_VERSION,
         HOST,
-        MAX_FILE_SIZE,
         PORT,
         get_app_info,
-        parse_env_bool,
         session_store,
         setup_logging,
         validate_config,
@@ -32,9 +25,7 @@ except (PermissionError, ValueError) as e:
     exit(1)
 
 from blueprints.live import bp as live_bp
-from blueprints.logs import bp as logs_bp
-from lib.log_store_maintenance import run_log_store_maintenance
-from lib.plot_theme import inline_json
+from blueprints.live import live_home
 from lib.session_support import SESSION_COOKIE_NAME
 
 logger = setup_logging()
@@ -45,16 +36,6 @@ else:
     _base_path = os.path.dirname(os.path.abspath(__file__))
 
 
-def _inline_json_filter(payload):
-    """Jinja filter yielding plot JSON that is inert inside an inline <script>.
-
-    inline_json has already escaped the script-breakout characters, so the
-    Markup wrapper (B704) only stops Jinja from HTML-escaping the quotes that
-    valid JSON needs, and it keeps "| safe" out of the templates.
-    """
-    return Markup(inline_json(payload))  # nosec B704
-
-
 def create_app():
     app = Flask(
         __name__,
@@ -62,10 +43,6 @@ def create_app():
         static_folder=os.path.join(_base_path, "images"),
         static_url_path="/images",
     )
-    app.config["MAX_CONTENT_LENGTH"] = MAX_FILE_SIZE
-    monitoring_on = parse_env_bool("MI_MONITORING_ENABLED", True)
-    app.config["MI_MONITORING_ENABLED"] = monitoring_on
-    app.jinja_env.filters["inline_json"] = _inline_json_filter
 
     @app.route("/static/js/<path:filename>")
     def mi_static_js(filename):
@@ -87,7 +64,7 @@ def create_app():
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.plot.ly; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "
@@ -102,28 +79,11 @@ def create_app():
         return dict(
             app_version=APP_VERSION,
             developer_credits=DEVELOPER_CREDITS,
-            monitoring_enabled=app.config["MI_MONITORING_ENABLED"],
-        )
-
-    @app.errorhandler(413)
-    def too_large(e):
-        max_size_mb = MAX_FILE_SIZE / (1024 * 1024)
-        return (
-            render_template(
-                "error.html",
-                error_title="File Too Large",
-                error_message=(
-                    f"File size exceeds maximum allowed size ({max_size_mb:.1f} MB)."
-                ),
-            ),
-            413,
         )
 
     @app.route("/")
-    def hub():
-        if not app.config["MI_MONITORING_ENABLED"]:
-            return redirect(url_for("logs.logs_home"))
-        return render_template("hub.html")
+    def home():
+        return live_home()
 
     @app.route("/health")
     def health():
@@ -134,16 +94,11 @@ def create_app():
         session_id = request.cookies.get(SESSION_COOKIE_NAME)
         if session_id:
             session_store.delete_session(session_id)
-        run_log_store_maintenance()
         response = make_response("", 200)
         response.delete_cookie(SESSION_COOKIE_NAME)
         return response
 
-    app.register_blueprint(logs_bp)
-    if monitoring_on:
-        app.register_blueprint(live_bp)
-
-    run_log_store_maintenance()
+    app.register_blueprint(live_bp)
 
     return app
 

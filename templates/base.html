@@ -5,15 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Migration Insights{% endblock %}</title>
     {% include '_theme_vars.html' %}
-    {% block plotly_head %}{% endblock %}
     <link rel="stylesheet" href="/static/css/mi-base.css">
-    <script>
-    window.MI_LOGS = {
-        list: {{ url_for('logs.list_snapshots')|tojson }},
-        loadT: {{ url_for('logs.load_snapshot_view', snapshot_id='__ID__')|tojson }},
-        delT: {{ url_for('logs.delete_snapshot_view', snapshot_id='__ID__')|tojson }}
-    };
-    </script>
     <style>{% block styles %}{% endblock %}</style>
     {% block head_links %}{% endblock %}
 </head>
@@ -28,17 +20,6 @@
         </a>
 
         <div class="sidebar-divider"></div>
-
-        {% block sidebar_upload %}
-        <button type="button" class="sidebar-btn" id="uploadBtn" onclick="openUploadDialog()" title="Upload Log File" aria-label="Upload log file">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-            </svg>
-            <span class="tooltip">Upload Log File</span>
-        </button>
-
-        <div class="sidebar-divider"></div>
-        {% endblock %}
 
         {% block sidebar_settings %}
         <button type="button" class="sidebar-btn" id="settingsBtn" onclick="openSettingsDialog()" title="Settings" aria-label="Settings">
@@ -78,13 +59,6 @@
         </div>
         <span class="version-badge">v{{ app_version }}</span>
     </nav>
-
-    {% block upload_ui %}
-    <!-- Hidden upload form -->
-    <form id="sidebarUploadForm" method="post" action="{{ url_for('logs.upload_logs') }}" enctype="multipart/form-data" style="display:none">
-        <input type="file" id="sidebarFileInput" name="file" accept=".log,.json,.out,.gz,.zip,.bz2,.tar.gz,.tgz,.tar.bz2">
-    </form>
-    {% endblock %}
 
     <header>
         <h1>{% block header_title %}Migration Insights{% endblock %}</h1>
@@ -150,49 +124,7 @@
         </div>
     </div>
 
-    {% block upload_dialogs %}
-    <!-- Upload dialog overlay -->
-    <div id="uploadDialogOverlay" class="mi-overlay" aria-hidden="true" onclick="if(event.target===this)closeUploadDialog()">
-        <div class="upload-dialog" role="dialog" aria-modal="true" aria-labelledby="uploadDialogTitle">
-            <div class="upload-dialog-header">
-                <h2 id="uploadDialogTitle">Upload Log File</h2>
-                <button type="button" class="settings-close-btn" onclick="closeUploadDialog()" title="Close" aria-label="Close upload dialog">&times;</button>
-            </div>
-            <div class="upload-dialog-scroll">
-                <div class="upload-dialog-section-title">Saved Analyses</div>
-                <div id="uploadDialogSnapshots" class="upload-dialog-list">
-                    <span class="upload-dialog-empty">Loading...</span>
-                </div>
-            </div>
-            <div class="upload-dialog-footer">
-                <button type="button" class="upload-dialog-new-btn" onclick="triggerNewUpload()">Upload New File</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Duplicate check dialog -->
-    <div id="duplicateCheckOverlay" class="mi-overlay" aria-hidden="true" onclick="if(event.target===this)duplicateCancel()">
-        <div class="confirm-dialog dup-check-dialog" role="dialog" aria-modal="true" aria-labelledby="duplicateDialogTitle">
-            <h3 id="duplicateDialogTitle">Previous Analysis Found</h3>
-            <p id="duplicateCheckMsg"></p>
-            <div class="confirm-dialog-actions">
-                <button class="btn-apply" onclick="duplicateLoadPrevious()">Load Previous</button>
-                <button class="btn-cancel dup-replace-btn" onclick="duplicateReplace()">Replace</button>
-                <button class="btn-cancel" onclick="duplicateCancel()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Upload loading overlay -->
-    <div id="uploadLoadingOverlay" class="upload-loading-overlay">
-        <div class="upload-loading-spinner"></div>
-        <h3>Processing Files...</h3>
-        <p>Parsing and analyzing data.</p>
-    </div>
-
     <script src="/static/js/mi-a11y.js"></script>
-    <script src="/static/js/mi-snapshots.js"></script>
-    {% endblock %}
     <script src="/static/js/mi-base-shell.js"></script>
 
     {% block scripts %}{% endblock %}

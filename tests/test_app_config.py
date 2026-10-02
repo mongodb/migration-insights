@@ -15,10 +15,7 @@ from lib.app_config import (
     build_verifier_ns_mismatches_endpoint_url,
     build_verifier_progress_endpoint_url,
     build_verifier_summary_endpoint_url,
-    classify_file_type,
     endpoint_host_allowed,
-    is_multi_file_archive,
-    load_error_patterns,
     normalize_progress_endpoint_url,
     parse_env_bool,
     parse_env_int,
@@ -83,27 +80,27 @@ class TestParseEnvInt:
 class TestParseEnvBool:
     def test_default_when_unset(self):
         with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("MI_MONITORING_ENABLED", None)
-            assert parse_env_bool("MI_MONITORING_ENABLED", True) is True
+            os.environ.pop("MI_LOG_JSON", None)
+            assert parse_env_bool("MI_LOG_JSON", True) is True
 
     def test_true_values(self):
         for raw in ("true", "True", "1", "yes"):
-            with patch.dict(os.environ, {"MI_MONITORING_ENABLED": raw}):
-                assert parse_env_bool("MI_MONITORING_ENABLED", False) is True
+            with patch.dict(os.environ, {"MI_LOG_JSON": raw}):
+                assert parse_env_bool("MI_LOG_JSON", False) is True
 
     def test_false_values(self):
         for raw in ("false", "False", "0", "no"):
-            with patch.dict(os.environ, {"MI_MONITORING_ENABLED": raw}):
-                assert parse_env_bool("MI_MONITORING_ENABLED", True) is False
+            with patch.dict(os.environ, {"MI_LOG_JSON": raw}):
+                assert parse_env_bool("MI_LOG_JSON", True) is False
 
     def test_empty_string_uses_default(self):
-        with patch.dict(os.environ, {"MI_MONITORING_ENABLED": ""}):
-            assert parse_env_bool("MI_MONITORING_ENABLED", True) is True
+        with patch.dict(os.environ, {"MI_LOG_JSON": ""}):
+            assert parse_env_bool("MI_LOG_JSON", True) is True
 
     def test_invalid_raises(self):
-        with patch.dict(os.environ, {"MI_MONITORING_ENABLED": "maybe"}):
-            with pytest.raises(ValueError, match="MI_MONITORING_ENABLED"):
-                parse_env_bool("MI_MONITORING_ENABLED", True)
+        with patch.dict(os.environ, {"MI_LOG_JSON": "maybe"}):
+            with pytest.raises(ValueError, match="MI_LOG_JSON"):
+                parse_env_bool("MI_LOG_JSON", True)
 
 
 class TestSetupLogging:
@@ -417,71 +414,6 @@ class TestFetchTimeouts:
             importlib.reload(config_module)
             assert config_module.VERIFIER_PROGRESS_TIMEOUT_SECS == 45
         importlib.reload(app_config)
-
-class TestClassifyFileType:
-    @pytest.mark.parametrize("filename,expected", [
-        ("mongosync_metrics.log", "metrics"),
-        ("mongosync_metrics_22JUN2026.log", "metrics"),
-        ("my_metrics_export.log", "metrics"),
-        ("mongosync_metrics_foo.log", "metrics"),
-        ("mongosync.log", "logs"),
-        ("mongosync.log.1", "logs"),
-        ("mongosync-foo.log", "logs"),
-        ("liveimport_x.log", "logs"),
-        ("mongosync.log.gz", "logs"),
-        ("archive/mongosync.log", "logs"),
-        ("myfile.log", None),
-        ("backup.gz", None),
-        ("data.json", None),
-    ])
-    def test_classify_file_type(self, filename, expected):
-        assert classify_file_type(filename) == expected
-
-
-class TestIsMultiFileArchive:
-    @pytest.mark.parametrize(
-        "filename,mime,expected",
-        [
-            ("bundle.zip", "application/octet-stream", True),
-            ("logs.tar.gz", "application/gzip", True),
-            ("archive.tgz", "application/octet-stream", True),
-            ("mongosync.log.gz", "application/gzip", False),
-            ("data.zip", "application/zip", True),
-        ],
-    )
-    def test_is_multi_file_archive(self, filename, mime, expected):
-        assert is_multi_file_archive(filename, mime) is expected
-
-
-class TestLoadErrorPatterns:
-    def test_loads_default_patterns_file(self, monkeypatch):
-        monkeypatch.delenv("MI_ERROR_PATTERNS_FILE", raising=False)
-        patterns = load_error_patterns()
-        assert isinstance(patterns, list)
-        assert len(patterns) > 0
-        assert "pattern" in patterns[0]
-
-    def test_env_var_override(self, tmp_path, monkeypatch):
-        custom = tmp_path / "custom.json"
-        custom.write_text(
-            '[{"pattern": "custom error", "friendly_name": "Custom"}]',
-            encoding="utf-8",
-        )
-        monkeypatch.setenv("MI_ERROR_PATTERNS_FILE", str(custom))
-        patterns = load_error_patterns()
-        assert len(patterns) == 1
-        assert patterns[0]["friendly_name"] == "Custom"
-
-    def test_missing_file_returns_empty(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("MI_ERROR_PATTERNS_FILE", str(tmp_path / "missing.json"))
-        assert load_error_patterns() == []
-
-    def test_invalid_json_returns_empty(self, tmp_path, monkeypatch):
-        bad = tmp_path / "bad.json"
-        bad.write_text("{not json", encoding="utf-8")
-        monkeypatch.setenv("MI_ERROR_PATTERNS_FILE", str(bad))
-        assert load_error_patterns() == []
-
 
 class TestInMemorySessionStore:
     def test_create_and_get_session(self):

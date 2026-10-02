@@ -7,7 +7,6 @@ import logging
 import os
 import re
 import sys
-import tempfile
 import threading
 import time
 import uuid
@@ -81,101 +80,6 @@ DEVELOPER_CREDITS = {
     "year": "2025 - 2026",
     "team_name": "Migration Factory TS Team",
 }
-
-# File upload settings
-MAX_FILE_SIZE = parse_env_int('MI_MAX_FILE_SIZE', 10 * 1024 * 1024 * 1024, min_value=1)
-ALLOWED_EXTENSIONS = {'.log', '.json', '.out', '.gz', '.zip', '.bz2', '.tar.gz', '.tgz', '.tar.bz2'}
-ALLOWED_MIME_TYPES = [
-    'text/plain',
-    'application/json',
-    'application/x-ndjson',
-    'application/gzip', 'application/x-gzip',
-    'application/zip', 'application/x-zip-compressed',
-    'application/x-bzip2',
-    'application/x-tar',  # Tar archives
-    'application/octet-stream'  # Generic binary (often used for compressed files)
-]
-
-# Log Viewer settings
-LOG_VIEWER_MAX_LINES = parse_env_int('MI_LOG_VIEWER_MAX_LINES', 2000, min_value=1)
-LOG_STORE_DIR = os.getenv('MI_LOG_STORE_DIR', tempfile.gettempdir())
-LOG_STORE_MAX_AGE_HOURS = parse_env_int('MI_LOG_STORE_MAX_AGE_HOURS', 24, min_value=1)
-
-# Compressed file MIME types (subset of ALLOWED_MIME_TYPES)
-COMPRESSED_MIME_TYPES = {
-    'application/gzip', 'application/x-gzip',
-    'application/zip', 'application/x-zip-compressed',
-    'application/x-bzip2',
-    'application/x-tar',  # Tar archives
-    'application/octet-stream'  # Generic binary (often used for compressed files)
-}
-
-# File extension to compression type mapping (for octet-stream fallback and tar detection)
-EXTENSION_TO_COMPRESSION = {
-    '.gz': 'gzip',
-    '.zip': 'zip',
-    '.bz2': 'bzip2',
-    '.tar.gz': 'tar_gzip',
-    '.tgz': 'tar_gzip',
-    '.tar.bz2': 'tar_bzip2'
-}
-
-# Filename substring rules for log/metrics identification (see classify_file_type)
-UNRECOGNIZED_FILENAME_ERROR_MESSAGE = (
-    "No mongosync log or metrics file was recognized from the filename. "
-    "Metrics files must include 'metrics' in the name; "
-    "log files must include 'mongosync' or 'liveimport'."
-)
-
-
-def classify_file_type(filename: str):
-    """
-    Classify a file as mongosync logs, mongosync metrics, or unknown based on filename.
-
-    Metrics: basename contains 'metrics' (case-insensitive).
-    Logs: basename contains 'mongosync' or 'liveimport' (case-insensitive).
-    Metrics is checked before mongosync/liveimport when both appear in the name.
-
-    Args:
-        filename: The filename to classify (can include path, only basename is used)
-
-    Returns:
-        'logs' for mongosync log files
-        'metrics' for mongosync metrics files
-        None for unrecognized files
-    """
-    import os
-    basename = os.path.basename(filename)
-
-    name_without_compression = basename
-    for ext in ('.gz', '.bz2', '.zip'):
-        if name_without_compression.lower().endswith(ext):
-            name_without_compression = name_without_compression[:-len(ext)]
-
-    for name in (name_without_compression, basename):
-        lower = name.lower()
-        if 'metrics' in lower:
-            return 'metrics'
-        if 'mongosync' in lower or 'liveimport' in lower:
-            return 'logs'
-
-    return None
-
-
-def is_multi_file_archive(filename: str, mime_type: str) -> bool:
-    """True for zip/tar archives where inner members are classified individually."""
-    import os
-    filename_lower = (filename or '').lower()
-    for ext in ('.tar.gz', '.tar.bz2', '.tgz'):
-        if filename_lower.endswith(ext):
-            return True
-    ext = os.path.splitext(filename_lower)[1]
-    if ext in ('.zip',):
-        return True
-    if mime_type in ('application/zip', 'application/x-zip-compressed'):
-        return True
-    return False
-
 
 # SSL/TLS settings
 SSL_ENABLED = os.getenv('MI_SSL_ENABLED', 'False').lower() == 'true'
@@ -360,48 +264,6 @@ VERIFIER_SUMMARY_MIN_DURATION_SECS = parse_env_int(
 # Not configurable via environment — change only here when MV bumps the schema version.
 VERIFIER_METADATA_VERSION = 7
 
-# Error patterns file (Log Analyzer)
-_DEFAULT_ERROR_PATTERNS_FILE = os.path.join(
-    os.path.dirname(__file__), 'error_patterns.json',
-)
-
-
-def resolve_error_patterns_file() -> str:
-    """Resolve error patterns JSON path from MI_ERROR_PATTERNS_FILE or the bundled default."""
-    configured = os.getenv('MI_ERROR_PATTERNS_FILE', '').strip()
-    return configured or _DEFAULT_ERROR_PATTERNS_FILE
-
-
-ERROR_PATTERNS_FILE = resolve_error_patterns_file()
-
-
-def load_error_patterns():
-    """
-    Load error patterns from external JSON file.
-    
-    Returns:
-        list: List of dictionaries with 'pattern' and 'friendly_name' keys, and
-        optionally 'recommendation' (string shown in the Errors tab for matches).
-    """
-    import json
-    logger = logging.getLogger(__name__)
-    patterns_file = resolve_error_patterns_file()
-    
-    try:
-        with open(patterns_file, 'r') as f:
-            patterns = json.load(f)
-            logger.info(f"Loaded {len(patterns)} error patterns from {patterns_file}")
-            return patterns
-    except FileNotFoundError:
-        logger.warning(f"Error patterns file not found: {patterns_file}")
-        return []
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in error patterns file: {e}")
-        return []
-    except Exception as e:
-        logger.error(f"Error loading error patterns: {e}")
-        return []
-
 class _JsonLogFormatter(logging.Formatter):
     """One JSON object per line for Splunk / centralized logging."""
 
@@ -455,8 +317,6 @@ def validate_config():
 
         if not os.access(log_dir, os.W_OK):
             raise PermissionError(f"Cannot write to log directory: {log_dir}")
-
-    parse_env_bool("MI_MONITORING_ENABLED", True)
 
     level_name = LOG_LEVEL.upper()
     if level_name not in VALID_LOG_LEVELS:
