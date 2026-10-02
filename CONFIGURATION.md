@@ -85,7 +85,7 @@ Invalid numeric environment variables or an unrecognized `LOG_LEVEL` cause immed
 
 #### Deployment Trust Model
 
-Migration Insights has **no user authentication**: anyone who can reach the app can use every feature, including uploading logs, submitting connection strings, and pointing the monitoring forms at a host of their choosing. It is designed to run next to a migration as a single-operator diagnostic tool.
+Migration Insights has **no user authentication**: anyone who can reach the app can use every feature, including submitting connection strings and pointing the monitoring forms at a host of their choosing. It is designed to run next to a migration as a single-operator diagnostic tool.
 
 Deploy it accordingly:
 

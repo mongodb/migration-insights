@@ -576,19 +576,6 @@ def verifier():
     return _set_session_cookie(response, session_id)
 
 
-def _verifier_no_config_response():
-    logger.error("No connection string or verifier progress endpoint available")
-    return jsonify(
-        {
-            "error": (
-                "No progress endpoint or connection string is configured. "
-                "Return to Migration monitoring home and provide a Migration Verifier "
-                "progress endpoint or MongoDB connection string."
-            )
-        }
-    ), 400
-
-
 @bp.route("/get_verifier_progress", methods=["POST"])
 def get_verifier_progress():
     connection_string, endpoint_url = _verifier_session_context()

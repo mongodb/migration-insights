@@ -2,8 +2,6 @@
 import pytest
 
 from lib.utils import (
-    convert_bytes,
-    format_byte_size,
     format_bytes_compact,
     format_count,
     format_lag_time_seconds,
@@ -155,35 +153,3 @@ class TestFormatRatio:
 
     def test_none_numerator(self):
         assert format_ratio(None, 200) == "— / 200"
-
-
-class TestFormatByteSize:
-    @pytest.mark.parametrize(
-        "size,expected_value,expected_unit",
-        [
-            (500, 500, "Bytes"),
-            (2048, 2.0, "KiloBytes"),
-            (1024 * 1024, 1.0, "MegaBytes"),
-            (1024**3, 1.0, "GigaBytes"),
-            (1024**4, 1.0, "TeraBytes"),
-        ],
-    )
-    def test_format_byte_size(self, size, expected_value, expected_unit):
-        value, unit = format_byte_size(size)
-        assert value == expected_value
-        assert unit == expected_unit
-
-
-class TestConvertBytes:
-    @pytest.mark.parametrize(
-        "size,target,expected",
-        [
-            (2048, "KiloBytes", 2.0),
-            (1024**2, "MegaBytes", 1.0),
-            (1024**3, "GigaBytes", 1.0),
-            (1024**4, "TeraBytes", 1.0),
-            (512, "Bytes", 512),
-        ],
-    )
-    def test_convert_bytes(self, size, target, expected):
-        assert convert_bytes(size, target) == expected

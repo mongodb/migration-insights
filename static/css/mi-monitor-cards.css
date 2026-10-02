@@ -65,13 +65,6 @@
     color: var(--lm-text-primary);
 }
 
-.lm-page-subtitle {
-    color: var(--lm-text-secondary);
-    font-size: 14px;
-    margin: 0;
-    line-height: 1.45;
-}
-
 .lm-stack {
     display: flex;
     flex-direction: column;
@@ -147,14 +140,6 @@
     color: var(--lm-text-primary);
 }
 
-.lm-copied-toggle-static {
-    cursor: default;
-}
-
-.lm-copied-toggle-static:hover {
-    color: inherit;
-}
-
 .lm-copied-chevron {
     display: inline-block;
     width: 1em;
@@ -196,15 +181,6 @@
     border-top: 1px solid var(--lm-card-border);
 }
 
-.lm-phase-times-heading {
-    font: inherit;
-    text-align: left;
-}
-
-.lm-phase-times-heading + .lm-phase-times-timezone-below {
-    margin-left: 0;
-}
-
 .lm-phase-times-toggle {
     display: inline-flex;
     align-items: center;
@@ -228,18 +204,6 @@
     flex-shrink: 0;
     font-size: 11px;
     line-height: 1;
-}
-
-.lm-phase-times-timezone-below {
-    margin-top: 8px;
-    margin-left: calc(1em + 4px);
-    font-size: 12px;
-}
-
-.lm-phase-times-timezone {
-    color: var(--lm-text-secondary);
-    font-size: 12px;
-    font-weight: 400;
 }
 
 .lm-phase-times-note {
@@ -792,18 +756,6 @@
     gap: 16px;
 }
 
-.lm-mongosync-version {
-    margin-left: auto;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--lm-text-secondary);
-    white-space: nowrap;
-}
-
-.lm-mongosync-version-value {
-    font-weight: 600;
-    color: var(--lm-text-primary);
-}
 .lm-full-view-link {
     font-size: 14px;
     color: var(--lm-accent, #00684a);

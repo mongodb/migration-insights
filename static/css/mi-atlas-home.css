@@ -61,15 +61,6 @@ a {
     color: var(--lm-link);
 }
 
-.mi-back {
-    text-align: center;
-    margin-bottom: 12px;
-}
-
-.mi-back a {
-    font-size: 0.9em;
-}
-
 .version-info {
     text-align: center;
     padding-top: 20px;

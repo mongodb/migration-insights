@@ -316,9 +316,6 @@ server {
         proxy_send_timeout 600s;
         proxy_read_timeout 600s;
     }
-    
-    # Increase upload size limit (for large log files)
-    client_max_body_size 10G;
 }
 ```
 
@@ -458,9 +455,6 @@ Create or edit `/etc/apache2/sites-available/migration-insights-ssl.conf`:
     # Logging
     ErrorLog ${APACHE_LOG_DIR}/migration-insights-error.log
     CustomLog ${APACHE_LOG_DIR}/migration-insights-access.log combined
-    
-    # Increase upload size limit
-    LimitRequestBody 10737418240
 </VirtualHost>
 ```
 

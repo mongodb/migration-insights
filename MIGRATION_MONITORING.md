@@ -1,6 +1,6 @@
 # Migration Monitoring
 
-Migration Monitoring is the real-time dashboard for ongoing **mongosync** cluster-to-cluster migrations. Open it from the hub (**Migration monitoring** → **Open migration monitoring**) or go directly to `/live/`.
+Migration Monitoring is the real-time dashboard for ongoing **mongosync** cluster-to-cluster migrations. `/` is the setup page (`/live/` is the same page).
 
 ![Migration monitoring home](images/migration_insights_monitoring_home.png)
 

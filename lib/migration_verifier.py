@@ -546,11 +546,6 @@ def _get_source_ns(task):
     return qf.get("namespace", "N/A") or "N/A"
 
 
-def _get_dest_ns(task):
-    qf = task.get("query_filter", {})
-    return qf.get("to", qf.get("namespace", "N/A")) or "N/A"
-
-
 def _format_single_mismatch_detail(detail, task_type=None):
     """Format one mismatch detail document for display."""
     if not detail or not isinstance(detail, dict):

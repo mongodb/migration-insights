@@ -91,19 +91,9 @@
         return section;
     }
 
-    function migrationProgressTitle(sync) {
+    function migrationProgressTitle() {
         var title = el('h2', 'lm-card-title-row lm-migration-progress-title');
-        title.appendChild(document.createTextNode(sync.cardTitle || 'Migration Progress'));
-        if (sync.showMongosyncVersion) {
-            var versionWrap = el('span', 'lm-mongosync-version');
-            versionWrap.appendChild(document.createTextNode('Mongosync Version: '));
-            var versionValue = sync.mongosyncVersion || '—';
-            versionWrap.appendChild(el('span', 'lm-mongosync-version-value', versionValue));
-            if (!sync.mongosyncVersion && sync.mongosyncVersionMissingTitle) {
-                applyHoverTitle(versionWrap, sync.mongosyncVersionMissingTitle);
-            }
-            title.appendChild(versionWrap);
-        }
+        title.appendChild(document.createTextNode('Migration Progress'));
         return title;
     }
 
@@ -273,8 +263,7 @@
         return card(data.title || 'Copy in natural order', data.description, [block]);
     }
 
-    function phaseStartTimesBlock(sync, options) {
-        options = options || {};
+    function phaseStartTimesBlock(sync) {
         var data = sync.phaseStartTimes;
         if (!data || !data.rows || data.rows.length === 0) {
             return null;
@@ -300,31 +289,15 @@
         });
         table.appendChild(tbody);
 
-        var alwaysShow = !!options.isSummaryView;
         var details = el(
             'div',
-            'lm-phase-times-details' + (alwaysShow || phaseStartTimesExpanded ? ' is-open' : '')
+            'lm-phase-times-details' + (phaseStartTimesExpanded ? ' is-open' : '')
         );
         details.appendChild(table);
-        if (data.timezoneNote && !data.timezoneNoteBelowTitle) {
+        if (data.timezoneNote) {
             details.appendChild(
                 el('div', 'lm-muted lm-phase-times-note', 'Times in ' + data.timezoneNote)
             );
-        }
-
-        if (alwaysShow) {
-            block.appendChild(el('div', 'lm-phase-times-heading lm-muted', label));
-            if (data.timezoneNote && data.timezoneNoteBelowTitle) {
-                block.appendChild(
-                    el(
-                        'div',
-                        'lm-muted lm-phase-times-timezone lm-phase-times-timezone-below',
-                        'Times in ' + data.timezoneNote
-                    )
-                );
-            }
-            block.appendChild(details);
-            return block;
         }
 
         var toggle = el('button', 'lm-phase-times-toggle lm-muted');
@@ -343,15 +316,6 @@
         });
 
         block.appendChild(toggle);
-        if (data.timezoneNote && data.timezoneNoteBelowTitle) {
-            block.appendChild(
-                el(
-                    'div',
-                    'lm-muted lm-phase-times-timezone lm-phase-times-timezone-below',
-                    'Times in ' + data.timezoneNote
-                )
-            );
-        }
         block.appendChild(details);
         return block;
     }
@@ -363,9 +327,7 @@
         return el('span', 'lm-muted', sync.copyPercent.toFixed(1) + '%');
     }
 
-    function copiedProgressBlock(sync, options) {
-        options = options || {};
-        var alwaysShow = !!options.isSummaryView;
+    function copiedProgressBlock(sync) {
         var hasDetails = !!(
             sync.collectionsCopiedLabel ||
             sync.partitionsCopiedLabel
@@ -408,25 +370,15 @@
 
         var block = el('div', 'lm-copied-block');
         var copiedRow = el('div', 'lm-phase-row');
-        var toggle = null;
-        var chevron = null;
+        var toggle = el('button', 'lm-copied-toggle lm-muted');
+        toggle.type = 'button';
+        toggle.setAttribute('aria-expanded', copyDetailsExpanded ? 'true' : 'false');
 
-        if (alwaysShow) {
-            var heading = el('span', 'lm-copied-toggle lm-muted lm-copied-toggle-static');
-            heading.appendChild(document.createTextNode(sync.copiedLabel));
-            applyHoverTitle(heading, sync.copiedTitle);
-            copiedRow.appendChild(heading);
-        } else {
-            toggle = el('button', 'lm-copied-toggle lm-muted');
-            toggle.type = 'button';
-            toggle.setAttribute('aria-expanded', copyDetailsExpanded ? 'true' : 'false');
-
-            chevron = el('span', 'lm-copied-chevron', copyDetailsExpanded ? '▾' : '▸');
-            toggle.appendChild(chevron);
-            toggle.appendChild(document.createTextNode(sync.copiedLabel));
-            applyHoverTitle(toggle, sync.copiedTitle);
-            copiedRow.appendChild(toggle);
-        }
+        var chevron = el('span', 'lm-copied-chevron', copyDetailsExpanded ? '▾' : '▸');
+        toggle.appendChild(chevron);
+        toggle.appendChild(document.createTextNode(sync.copiedLabel));
+        applyHoverTitle(toggle, sync.copiedTitle);
+        copiedRow.appendChild(toggle);
 
         var copiedPercent = copyPercentLabel(sync);
         if (copiedPercent) {
@@ -436,18 +388,16 @@
 
         var details = el(
             'div',
-            'lm-copied-details' + (alwaysShow || copyDetailsExpanded ? ' is-open' : '')
+            'lm-copied-details' + (copyDetailsExpanded ? ' is-open' : '')
         );
         appendCopyDetailLines(details, true);
 
-        if (toggle) {
-            toggle.addEventListener('click', function () {
-                copyDetailsExpanded = !copyDetailsExpanded;
-                toggle.setAttribute('aria-expanded', copyDetailsExpanded ? 'true' : 'false');
-                chevron.textContent = copyDetailsExpanded ? '▾' : '▸';
-                details.classList.toggle('is-open', copyDetailsExpanded);
-            });
-        }
+        toggle.addEventListener('click', function () {
+            copyDetailsExpanded = !copyDetailsExpanded;
+            toggle.setAttribute('aria-expanded', copyDetailsExpanded ? 'true' : 'false');
+            chevron.textContent = copyDetailsExpanded ? '▾' : '▸';
+            details.classList.toggle('is-open', copyDetailsExpanded);
+        });
 
         block.appendChild(details);
         return block;
@@ -502,9 +452,8 @@
         return block;
     }
 
-    function renderSync(sync, options) {
+    function renderSync(sync) {
         if (!sync) return null;
-        options = options || {};
         var phaseRow = el('div', 'lm-phase-row');
         var phaseText = el('span');
         phaseText.appendChild(document.createTextNode('Current Phase: '));
@@ -512,7 +461,7 @@
         phaseRow.appendChild(phaseText);
 
         var children = [phaseRow];
-        var copiedBlock = copiedProgressBlock(sync, options);
+        var copiedBlock = copiedProgressBlock(sync);
         if (copiedBlock) {
             var copiedSection = el('div', 'lm-sync-subsection');
             copiedSection.appendChild(copiedBlock);
@@ -541,12 +490,12 @@
             children.push(metaMetrics);
         }
 
-        var phaseTimesBlock = phaseStartTimesBlock(sync, options);
+        var phaseTimesBlock = phaseStartTimesBlock(sync);
         if (phaseTimesBlock) {
             children.push(phaseTimesBlock);
         }
 
-        return cardWithTitleElement(migrationProgressTitle(sync), null, children);
+        return cardWithTitleElement(migrationProgressTitle(), null, children);
     }
 
     function renderIndexBuilding(idx) {
@@ -642,7 +591,7 @@
         var textBlock = el('div', 'lm-toolbar-text');
 
         var title = el('h2', 'lm-page-title');
-        title.appendChild(document.createTextNode(options.pageTitle || 'Migration Monitoring'));
+        title.appendChild(document.createTextNode('Migration Monitoring'));
         if (display && display.stateBadge) {
             title.appendChild(
                 badge(display.stateBadge.label, display.stateBadge.color, true)
@@ -655,9 +604,6 @@
         }
         appendDataSourceBadges(title, dataSources);
         textBlock.appendChild(title);
-        if (options.pageSubtitle) {
-            textBlock.appendChild(el('p', 'lm-page-subtitle', options.pageSubtitle));
-        }
 
         toolbar.appendChild(textBlock);
         appendFullViewLink(toolbar, options.fullViewLink);
@@ -670,10 +616,7 @@
         var syncOnly = !!options.syncOnly;
         root.replaceChildren();
         payload = payload || {};
-        var toolbarOpts = {
-            pageTitle: payload.pageTitle,
-            pageSubtitle: payload.pageSubtitle,
-        };
+        var toolbarOpts = {};
         if (options.fullViewLink) {
             toolbarOpts.fullViewLink = options.fullViewLink;
         }
@@ -711,10 +654,7 @@
         if (payload.metadataWarning) {
             stack.appendChild(banner('warning', payload.metadataWarning));
         }
-        var syncRenderOptions = {
-            isSummaryView: !!options.isSummaryView || payload.pageTitle === 'Migration Summary',
-        };
-        var syncCard = renderSync(display.sync, syncRenderOptions);
+        var syncCard = renderSync(display.sync);
         if (syncCard) stack.appendChild(syncCard);
 
         if (syncOnly) {

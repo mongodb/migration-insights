@@ -1,10 +1,9 @@
-/* Live monitoring pages: imports Summary styles, then live/verifier-only rules */
+/* Live monitoring pages: card styles, then live/verifier-only rules */
 @import url('mi-monitor-cards.css');
 
-#live-monitor-tab {
-    margin: 0 -20px;
-    min-height: 400px;
-    background: var(--lm-page-bg);
+body:has(.lm-main),
+body:has(.lm-main) main {
+    background-color: var(--lm-page-bg);
 }
 .lm-download-link {
     margin-left: auto;

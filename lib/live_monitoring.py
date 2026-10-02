@@ -470,7 +470,6 @@ def _build_phase_start_times(metadata):
         "label": "Phase start times",
         "rows": rows,
         "timezoneNote": "UTC",
-        "timezoneNoteBelowTitle": False,
     }
 
 
