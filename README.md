@@ -18,6 +18,8 @@ See **[MIGRATION_MONITORING.md](MIGRATION_MONITORING.md)** for the unified setup
 
 Migration Insights was developed and tested with **mongosync 1.21**.
 
+The live **CEA stage** metric on Migration Progress requires mongosync **1.22+** and the mongosync progress endpoint (`/api/v1/progress`). It is not available from destination metadata alone.
+
 Earlier and later mongosync versions may work where APIs (for example `/api/v1/progress` and internal metadata databases) are unchanged. Behavior with untested versions is not guaranteed. Validate monitoring panels against your mongosync version before relying on them in production.
 
 ## Migration Verifier compatibility

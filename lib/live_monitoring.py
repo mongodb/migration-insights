@@ -32,9 +32,22 @@ from .utils import (
     format_count,
     format_lag_time_seconds,
     format_ratio,
+    normalize_cea_stage,
     resolve_replication_lag,
     format_seconds_title,
 )
+
+_CEA_STAGE_TITLES = {
+    "collection copy drain": (
+        "Still draining the collection-copy backlog. Duplicate-key replays can "
+        "reduce throughput; rising lag is often expected."
+    ),
+    "steady state": (
+        "Collection-copy backlog drained; processing current change-stream writes. "
+        "Lag should stabilize or fall if mongosync keeps up; sustained lag growth "
+        "may mean the migration will not catch up."
+    ),
+}
 
 _MIGRATION_START_TIME_TITLE = (
     "This is the time when the phase changes from uninitialized to "
@@ -366,6 +379,17 @@ def _build_progress_metrics(progress, lag_resolved):
             small=True,
         ),
     ]
+    cea_stage = normalize_cea_stage(progress.get("ceaStage"))
+    if cea_stage:
+        stage_metric = {
+            "label": "CEA stage",
+            "value": cea_stage,
+            "small": True,
+        }
+        title = _CEA_STAGE_TITLES.get(cea_stage)
+        if title:
+            stage_metric["title"] = title
+        metrics.append(stage_metric)
     metrics.extend(
         [
             {

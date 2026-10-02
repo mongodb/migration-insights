@@ -3,7 +3,7 @@
 **Scope:** `tests/`  
 **Framework:** pytest (with some `unittest.TestCase` classes)  
 **CI:** [`.github/workflows/migration-insights-tests.yml`](../.github/workflows/migration-insights-tests.yml) — runs `python -m pytest tests/ -q` on Python 3.11  
-**Total:** **485 tests** across **19 test files** (+ `conftest.py` shared fixtures)
+**Total:** **496 tests** across **19 test files** (+ `conftest.py` shared fixtures)
 
 ---
 
@@ -13,10 +13,10 @@
 |------|------:|------:|-------------------|
 | App config & bootstrap | 4 | 104 | Env parsing, endpoint URLs, host allowlist, sessions, app factory |
 | Security | 1 | 5 | Connection string sanitization |
-| Live monitoring | 5 | 169 | Progress/verifier API clients, routes, dashboard, metadata, formatting, toolbar badges |
+| Live monitoring | 5 | 180 | Progress/verifier API clients, routes, dashboard, metadata, formatting, toolbar badges |
 | Migration metadata UI | 8 | 116 | Verification mode, index building, filters, natural order, phases |
 | Migration verifier | 1 | 91 | MongoDB verifier queries, badges, payloads, manual summary, mismatch downloads |
-| **Total** | **19** | **485** | |
+| **Total** | **19** | **496** | |
 
 ---
 
@@ -24,7 +24,7 @@
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-python3 -m pytest tests/ -q          # all 485 tests
+python3 -m pytest tests/ -q          # all 496 tests
 python3 -m pytest tests/ --collect-only -q   # list without running (verify current count)
 python3 -m pytest tests/test_live_routes.py -v  # single file
 ```
@@ -48,15 +48,15 @@ python3 -m pytest tests/test_live_routes.py -v  # single file
 |------|------:|-----------|
 | `test_connection_validator.py` | 5 | Strips credentials from URIs, HTML-escapes hosts, fallback for malformed URIs |
 
-### 3. Live monitoring (169 tests)
+### 3. Live monitoring (180 tests)
 
 | File | Tests | Validates |
 |------|------:|-----------|
-| `test_live_monitoring.py` | 54 | `fetch_progress` / `fetch_summary` / verifier progress (timeouts, redirects, host allowlist), state badges, display builders, duration hover titles |
+| `test_live_monitoring.py` | 56 | `fetch_progress` / `fetch_summary` / verifier progress (timeouts, redirects, host allowlist), state badges, display builders, duration hover titles, CEA stage metrics |
 | `test_live_routes.py` | 47 | `/live` home, unified monitor POST, routing (migration/dashboard/verifier), dashboard routes, progress monitor |
 | `test_live_metadata_status.py` | 26 | Lag time, write-blocking mode, sync phase normalization, progress gating (index/verification), partition byte totals |
 | `test_data_sources.py` | 6 | Progress API / Metadata toolbar badges when endpoint/metadata configured or unavailable |
-| `test_utils.py` | 36 | Count/lag/ratio formatting helpers, seconds hover titles, replication lag resolution |
+| `test_utils.py` | 45 | Count/lag/ratio formatting helpers, seconds hover titles, replication lag resolution, ceaStage normalization |
 
 ### 4. Migration metadata UI (116 tests)
 
@@ -90,7 +90,7 @@ python3 -m pytest tests/test_live_routes.py -v  # single file
 
 ---
 
-## Full Test Inventory (485 tests)
+## Full Test Inventory (496 tests)
 
 Per-file totals (run `python3 -m pytest tests/ --collect-only -q` to verify):
 
@@ -106,16 +106,16 @@ Per-file totals (run `python3 -m pytest tests/ --collect-only -q` to verify):
 | `test_index_building_info.py` | 10 |
 | `test_index_correction_totals.py` | 28 |
 | `test_live_metadata_status.py` | 26 |
-| `test_live_monitoring.py` | 54 |
+| `test_live_monitoring.py` | 56 |
 | `test_live_routes.py` | 47 |
 | `test_migration_verifier.py` | 91 |
 | `test_natural_order.py` | 8 |
 | `test_phase_start_times.py` | 8 |
 | `test_session_support.py` | 3 |
-| `test_utils.py` | 36 |
+| `test_utils.py` | 45 |
 | `test_verification_mode.py` | 33 |
 | `test_verifier_persistence_fallback.py` | 8 |
-| **Total** | **485** |
+| **Total** | **496** |
 
 ### Notable test classes (by file)
 

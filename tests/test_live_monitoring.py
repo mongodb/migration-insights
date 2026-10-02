@@ -470,13 +470,35 @@ class TestBuildHelpers:
         assert "title" not in by_label["Events applied"]
         assert "CEA stage" not in by_label
 
-    def test_build_progress_metrics_omits_cea_stage(self):
+    def test_build_progress_metrics_cea_stage_steady_state(self):
         lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
         metrics = _build_progress_metrics(
             {"ceaStage": "steady state"},
             lag,
         )
-        assert "CEA stage" not in {m["label"] for m in metrics}
+        by_label = {m["label"]: m for m in metrics}
+        assert by_label["CEA stage"]["value"] == "steady state"
+        assert by_label["CEA stage"]["small"] is True
+        assert "sustained lag growth" in by_label["CEA stage"]["title"]
+        labels = [m["label"] for m in metrics]
+        assert labels.index("CEA stage") == labels.index("Catch-up estimate") + 1
+
+    def test_build_progress_metrics_cea_stage_collection_copy_drain(self):
+        lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
+        metrics = _build_progress_metrics(
+            {"ceaStage": "collection copy drain"},
+            lag,
+        )
+        by_label = {m["label"]: m for m in metrics}
+        assert by_label["CEA stage"]["value"] == "collection copy drain"
+        assert by_label["CEA stage"]["small"] is True
+        assert "rising lag is often expected" in by_label["CEA stage"]["title"]
+
+    def test_build_progress_metrics_omits_cea_stage_when_absent(self):
+        lag = {"overall": 10, "crud": None, "ddl": None, "has_breakdown": False}
+        for progress in ({}, {"ceaStage": "n/a"}, {"ceaStage": ""}, {"ceaStage": None}):
+            metrics = _build_progress_metrics(progress, lag)
+            assert "CEA stage" not in {m["label"] for m in metrics}
 
     def test_db_only_metrics_lag_title(self):
         lag = {"overall": 90, "crud": None, "ddl": None, "has_breakdown": False}

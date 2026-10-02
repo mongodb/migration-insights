@@ -12,6 +12,27 @@ def _lag_seconds_value(raw):
         return None
 
 
+_CEA_STAGE_CANONICAL = {
+    "collection copy drain": "collection copy drain",
+    "steady state": "steady state",
+}
+
+
+def normalize_cea_stage(value):
+    """Return a canonical ceaStage label, or None if absent / not in CEA.
+
+    Known values are normalized case-insensitively. Empty, ``n/a``, and missing
+    values return None. Unknown non-empty strings pass through (stripped) for
+    forward compatibility with future mongosync labels.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() == "n/a":
+        return None
+    return _CEA_STAGE_CANONICAL.get(text.lower(), text)
+
+
 def resolve_replication_lag(progress):
     """
     Extract overall/crud/ddl lag seconds from /progress or replication log JSON.

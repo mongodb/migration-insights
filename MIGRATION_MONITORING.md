@@ -50,7 +50,7 @@ Each monitoring screen shows **Progress API** / **Metadata** toolbar badges when
 The full Migration Monitoring page polls mongosync and/or the destination metadata database and renders cards for:
 
 - **Migration state** — coordinator state badge (e.g. `RUNNING`, `PAUSED`, `COMMITTED`)
-- **Migration progress** — copy phase, bytes/collections/partitions, lag time, phase start times
+- **Migration progress** — copy phase, bytes/collections/partitions, lag time, phase start times. With mongosync **1.22+** and a progress endpoint, a **CEA stage** metric appears during Change Event Application (`collection copy drain` or `steady state`). Rising lag while draining the collection-copy backlog is often expected; sustained lag growth in steady state is a stronger signal the migration may not catch up. The metric is omitted for older mongosync, non-CEA phases, and metadata-only monitoring.
 - **Index building** — indexes rebuilt on the destination after the initial copy
 - **Embedded Verifier** — mongosync's built-in verifier (when enabled)
 - **Filtered migration** — namespace include/exclude filters and natural-order copy settings (from metadata)
